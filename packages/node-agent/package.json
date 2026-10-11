@@ -20,7 +20,7 @@
     "test": "node --test test/*.test.mjs"
   },
   "dependencies": {
-    "@babel/core": "^7.28.0",
+    "@babel/core": "^8.0.7",
     "@babel/plugin-transform-typescript": "^7.28.0"
   },
   "devDependencies": {
