@@ -50,7 +50,7 @@
     "electron-builder": "^26.15.3",
     "electron-vite": "^4.0.0",
     "lucide-react": "^0.540.0",
-    "playwright": "^1.55.0",
+    "playwright": "^1.64.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "shiki": "^4.5.0",

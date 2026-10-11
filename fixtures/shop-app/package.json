@@ -12,7 +12,7 @@
   "dependencies": {
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "@electric-sql/pglite": "^0.3.0",
+    "@electric-sql/pglite": "^0.5.8",
     "lru-cache": "^11.0.0"
   },
   "devDependencies": {
