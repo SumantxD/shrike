@@ -29,7 +29,7 @@
     "@electric-sql/pglite": "^0.3.0",
     "@libsql/client": "^0.18.0",
     "@neondatabase/serverless": "^1.2.0",
-    "@prisma/client": "^6.19.3",
+    "@prisma/client": "^7.10.0",
     "@supabase/supabase-js": "^2.117.3",
     "@upstash/redis": "^1.39.0",
     "better-sqlite3": "^13.0.3",
