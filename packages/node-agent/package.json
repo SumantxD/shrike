@@ -26,7 +26,7 @@
   "devDependencies": {
     "@aws-sdk/client-dynamodb": "^3.1147.0",
     "@aws-sdk/lib-dynamodb": "^3.1147.0",
-    "@electric-sql/pglite": "^0.3.0",
+    "@electric-sql/pglite": "^0.5.8",
     "@libsql/client": "^0.18.0",
     "@neondatabase/serverless": "^1.2.0",
     "@prisma/client": "^6.19.3",
