@@ -34,7 +34,7 @@
     "@upstash/redis": "^1.39.0",
     "better-sqlite3": "^13.0.3",
     "drizzle-orm": "^0.45.4",
-    "ioredis": "^5.4.0",
+    "ioredis": "^6.0.0",
     "lru-cache": "^11.0.0",
     "mongodb": "^7.7.0",
     "mongodb3": "npm:mongodb@3.7.4",
