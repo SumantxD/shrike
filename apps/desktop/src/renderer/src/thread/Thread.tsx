@@ -209,6 +209,24 @@ export function Thread() {
     th.dive();
   }, []);
 
+  const onMiniKey = (e: React.KeyboardEvent<HTMLElement>) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
+      (e.target as HTMLElement).blur();
+      return;
+    }
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      e.stopPropagation();
+      const btns = Array.from(e.currentTarget.querySelectorAll<HTMLButtonElement>("button"));
+      const idx = btns.indexOf(e.target as HTMLButtonElement);
+      if (idx === -1) return;
+      const next = e.key === "ArrowDown" ? btns[idx + 1] : btns[idx - 1];
+      next?.focus();
+    }
+  };
+
   return (
     <div className="th-root" style={VARS}>
       <div className="th-bar">
@@ -302,7 +320,7 @@ export function Thread() {
         )}
       </div>
 
-      <nav className="th-mini" aria-label="Trips">
+      <nav className="th-mini" aria-label="Trips" onKeyDown={onMiniKey}>
         {list.map((t, i) => (
           <button
             key={t.actionId}

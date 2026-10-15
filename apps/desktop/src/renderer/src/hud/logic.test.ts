@@ -68,6 +68,9 @@ test("keys: never fire while typing, Enter views a new trip when offered", () =>
   assert.equal(k("Enter", { meta: true, typing: true }), "apply");
   assert.equal(k("!"), "next-failure");
   assert.equal(k("`"), "terminal");
+  assert.equal(k("f"), "trip-list");
+  assert.equal(k("F"), "trip-list");
+  assert.equal(k("f", { typing: true }), null);
   assert.equal(resolveKey({ key: "Enter", meta: false, ctrl: false, alt: false, typing: false }, { newTrip: true, approval: false }), "view-new-trip");
 });
 

@@ -166,7 +166,7 @@ const PHRASES: [string, string][] = [
   ["api client", "api"], ["console ka output", "logs"], ["logs ka output", "logs"], ["api explorer", "api"], ["console output", "logs"], ["server logs", "logs"], ["network requests", "network"], ["network calls", "network"], ["network tab", "network"], ["server output", "terminal"],
   ["time view", "time"], ["my app", "app"], ["dev server", "server"], ["dive in", "dive"], ["zoom in", "dive"], ["drill down", "dive"], ["zoom out", "back"], ["go back", "back"], ["play again", "replay"], ["play it again", "replay"],
   ["pull up", "show"], ["bring up", "show"], ["look at", "show"], ["take me to", "go"], ["jump to", "go"], ["switch over to", "switch"], ["kill", "stop"], ["shut down", "stop"], ["shut it down", "stop"],
-  ["new trip", "newtrip"], ["new request", "new request"], ["what went wrong", "where error"], ["went wrong", "error"],
+  ["new trip", "newtrip"], ["new request", "new request"], ["trip list", "triplist"], ["trips list", "triplist"], ["what went wrong", "where error"], ["went wrong", "error"],
   // agent
   ["the agent", "agent"], ["claude code", "claude"], ["have claude", "ask claude"], ["have the agent", "agent"],
   // world
@@ -191,6 +191,7 @@ const LEX: Record<string, string> = {
   back: "back", peeche: "back", pichhe: "back", wapas: "back", volver: "back", retour: "back", "zurück": "back", exit: "back", escape: "back",
   step: "step", kadam: "step", steps: "step", paso: "step", "étape": "step", schritt: "step",
   trip: "trip", trips: "trip", request: "request", requests: "request", rikvest: "request", rikvests: "request",
+  triplist: "triplist",
   dive: "dive", andar: "dive", inside: "dive", expand: "dive", enter: "dive",
   replay: "replay", rejouer: "replay",
   go: "go", jao: "go", jaao: "go", chalo: "go", chaliye: "go", jump: "go", head: "go", move: "go", take: "go", ve: "go", va: "go", wechsle: "switch", cambia: "switch", switch: "switch",

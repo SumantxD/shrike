@@ -144,6 +144,7 @@ const RUN: Record<string, Run> = {
   "step.prev": () => cmd("step-up", "Previous step", hasTrip()),
   "trip.next": () => cmd("trip-down", "Next trip", hasTrip()),
   "trip.prev": () => cmd("trip-up", "Previous trip", hasTrip()),
+  "trip.list": () => cmd("trip-list", "Trip list", hasTrip()),
   "trip.view_new": () => cmd("view-new-trip", "Showing the new trip", !!useUi.getState().newTrip),
   "trip.latest": () => {
     const id = tripOrder().at(-1);

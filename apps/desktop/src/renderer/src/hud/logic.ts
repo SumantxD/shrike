@@ -8,7 +8,7 @@ import { currentStage } from "../../../main/sdlc.ts";
 export type Command =
   | "step-down" | "step-up" | "trip-down" | "trip-up" | "dive" | "escape" | "replay" | "time" | "next-failure"
   | "app" | "logs" | "network" | "api" | "terminal" | "details" | "editor" | "record" | "ask" | "apply" | "view-new-trip"
-  | "point" | "quick-open" | "skills" | "ship" | "flows" | "pop-out" | "view";
+  | "point" | "quick-open" | "skills" | "ship" | "flows" | "pop-out" | "view" | "trip-list";
 
 export interface KeyInput {
   key: string;
@@ -22,6 +22,7 @@ const PLAIN: Record<string, Command> = {
   ArrowDown: "step-down", ArrowUp: "step-up", PageDown: "trip-down", PageUp: "trip-up", " ": "replay",
   t: "time", "!": "next-failure", p: "app", g: "logs", n: "network", a: "api", "`": "terminal", d: "details",
   e: "editor", r: "record", "/": "ask", x: "point", k: "skills", s: "ship", w: "flows", o: "pop-out", v: "view",
+  f: "trip-list",
 };
 
 /** docs/06-design.md "Keyboard". Only Esc, ⌘K, ⌘P and ⌘↵ work while typing. */

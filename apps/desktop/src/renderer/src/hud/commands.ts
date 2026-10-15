@@ -278,6 +278,10 @@ export function run(cmd: Command): void {
     case "trip-down":
     case "trip-up":
       return th.stepTrip(cmd === "trip-down" ? 1 : -1);
+    case "trip-list": {
+      const el = document.querySelector<HTMLButtonElement>(".th-mini button.on") ?? document.querySelector<HTMLButtonElement>(".th-mini button");
+      return el?.focus();
+    }
     case "dive":
       if (th.view === "files" && th.outward) return th.setOutward(0); // FV: Enter comes back in to the file cards
       return th.focus.actionId ? th.dive() : undefined;
@@ -337,6 +341,7 @@ export function run(cmd: Command): void {
         if (req.patch) th.setProbe(null);
         return void ag.answer(req.id, false);
       }
+      if (document.activeElement?.closest(".th-mini")) return (document.activeElement as HTMLElement).blur();
       if (th.dived) return th.surface();
       if (th.view === "files" && th.focus.actionId && th.outward < 2) return th.setOutward(th.outward === 0 ? 1 : 2); // FV: cards, then the tree, then the whole route
       if (ui.newTrip) return ui.setNewTrip(null);
