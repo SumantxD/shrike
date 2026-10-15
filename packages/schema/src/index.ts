@@ -56,7 +56,7 @@ export interface DebugEvent {
   stack?: string; // raw JS stack captured at call time (browser http_request, or a React 19 user_action's JSX); main resolves it into source
   target?: { x: number; y: number; width: number; height: number; viewportWidth: number; viewportHeight: number }; // user_action click target rect (CSS px)
   place?: Place; // where this event ran; set by agents or main (services, datastores, outside hosts, callers)
-  cache?: { op: string; key?: string; hit?: boolean }; // cache_op: op "get" | "set" | "del" | "incr" | ...; hit for reads
+  cache?: { op: string; key?: string; path?: string; hit?: boolean }; // cache_op: op "get" | "set" | "del" | "incr" | ...; hit for reads
   caller?: { kind: "browser" | "curl" | "postman" | "explorer" | "agent" | "cron" | "test" | "service" | "other"; label: string; command?: string }; // user_action roots that didn't start in a browser
   change?: DataChange; // I3: db_query writes, captured by node-agent around the statement
   resendOf?: string; // AP: user_action roots, the trip this request edited and resent

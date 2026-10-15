@@ -37,14 +37,14 @@ function hit(op, v) {
   if (typeof v === "object" && !Buffer.isBuffer(v)) return Object.keys(v).length > 0;
   return true;
 }
-
-function record(fn, self, op, key, call) {
+function record(fn, self, op, key, path, call) {
   if (!op || SKIP.has(op)) return call();
   return libCall(
     fn,
     () => {
       const k = key === undefined ? undefined : safeKey(str(key));
-      return { origin: "db", kind: "cache_op", name: k === undefined ? op.toUpperCase() : `${op.toUpperCase()} ${k}`, cache: { op, key: k }, place: placeOf(self) };
+      const p = path === undefined ? undefined : str(path);
+      return { origin: "db", kind: "cache_op", name: k === undefined ? op.toUpperCase() : `${op.toUpperCase()} ${k}`, cache: { op, key: k, path: p }, place: placeOf(self) };
     },
     call,
     (event, v) => {
@@ -65,18 +65,21 @@ export function patchRedis(mod, file) {
     const orig = proto.sendCommand;
     const patched = function sendCommand(args, options) {
       const a = Array.isArray(args) ? args : [];
-      return record(patched, this, a.length ? str(a[0]).toLowerCase() : "", a[1], () => orig.call(this, args, options));
+      const op = a.length ? str(a[0]).toLowerCase() : "";
+      const path = (op === "json.del" || op === "json.forget") ? a[2] : undefined;
+      return record(patched, this, op, a[1], path, () => orig.call(this, args, options));
     };
     proto.sendCommand = patched;
     return;
   }
   const exec = proto.commandsExecutor;
   if (typeof exec !== "function") return;
-  const patched = function commandsExecutor(command, args, name) {
+ const patched = function commandsExecutor(command, args, name) {
     const list = Array.isArray(args) ? args : [];
     const key = list.find((x) => typeof x === "string" || Buffer.isBuffer(x));
     const op = String(name ?? command?.NAME ?? "").replace(/^(json|ft)_?/i, (m) => `${m.replace(/_$/, "")}.`).toLowerCase();
-    return record(patched, this, op, key, () => exec.call(this, command, args, name));
+    const path = (op === "json.del" || op === "json.forget") ? list[1] : undefined;
+    return record(patched, this, op, key, path, () => exec.call(this, command, args, name));
   };
   proto.commandsExecutor = patched;
   try {

@@ -304,12 +304,12 @@ At the start every project ran but none had a working database lane, and only on
 - Popups are allowed in the app pane (Firebase and OAuth sign-in).
 - The redactor no longer eats URL ports and paths, `className` values, or UUID parts of Redis keys.
 - ANSI colour codes are stripped from log lines.
+- Marked keys written by JSON.SET and other module commands in the cache inspector (#28)
 
 ## What remains
 
 | Gap | Where seen | Why it is still open |
 |---|---|---|
-| The cache inspector doesn't mark keys written by JSON.SET and other module commands | express-redis | `cacheMarks` in `apps/desktop/src/renderer/src/inspector/logic.ts` only knows plain write commands; found in the last round, not fixed yet |
 | Login's writes (sessions, refresh tokens, last sign-in) don't show in "what this click changed" | nextjs-supabase | `packages/browser-agent/src/data.ts` only builds a change for sign up; GoTrue writes inside Supabase, so Shrike only sees the HTTP reply |
 | Mongo queries have no source line | express-mongoose | `drivers/mongodb.mjs` reads the stack from the driver's command event and doesn't use the approximate fallback yet |
 | Prisma INSERT placed at the middleware's await (trpc.ts:91), not post.ts | nextjs-prisma-t3 | Prisma's query is lazy and starts at the first await. That frame is real app code, so the fallback never runs |

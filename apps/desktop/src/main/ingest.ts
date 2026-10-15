@@ -26,7 +26,7 @@ const eventSchema = z
     target: z.object({ x: n, y: n, width: n, height: n, viewportWidth: n, viewportHeight: n }).strict().optional(),
     // A malformed extra drops only that field, not the whole batch.
     place: place.optional().catch(undefined),
-    cache: z.object({ op: z.string().max(40), key: z.string().max(2000).optional(), hit: z.boolean().optional() }).strip().optional().catch(undefined),
+    cache: z.object({ op: z.string().max(40), key: z.string().max(2000).optional(), path: z.string().max(2000).optional(), hit: z.boolean().optional() }).strip().optional().catch(undefined),
     caller: z
       .object({ kind: z.enum(["browser", "curl", "postman", "explorer", "agent", "cron", "test", "service", "other"]), label, command: z.string().max(4000).optional() })
       .strip()
