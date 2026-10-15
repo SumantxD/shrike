@@ -7,7 +7,7 @@
     "dev": "vite --strictPort & node --watch server/index.ts & wait"
   },
   "dependencies": {
-    "express": "^5.1.0",
+    "express": "^5.3.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
