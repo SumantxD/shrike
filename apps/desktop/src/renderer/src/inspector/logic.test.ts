@@ -73,8 +73,11 @@ test("cache marks, outside calls, processes, output lines, labels", () => {
     ev({ kind: "cache_op", place: LRU, cache: { op: "get", key: "user:1", hit: true } }),
     ev({ kind: "cache_op", place: LRU, cache: { op: "get", key: "user:2", hit: true } }),
     ev({ kind: "cache_op", place: { ...LRU, id: "cache:lru:sessions" }, cache: { op: "get", key: "x", hit: false } }),
-  ]);
-  assert.deepEqual([...cacheMarks(v, LRU.id)], [["user:1", "set"], ["user:2", "hit"]]);
+    ev({ kind: "cache_op", place: LRU, cache: { op: "json.set", key: "cart:1" } }),
+    ev({ kind: "cache_op", place: LRU, cache: { op: "json.del", key: "cart:2" } }),
+  ]); 
+  assert.deepEqual([...cacheMarks(v, LRU.id)], [["user:1", "set"], ["user:2", "hit"], ["cart:1", "set"], ["cart:2", "delete"]]);
+
 
   const STRIPE = { kind: "outside" as const, id: "outside:localhost:4199", name: "Stripe (test double)" };
   const c1 = ev({ kind: "external_call", place: STRIPE, startMs: 10, http: { method: "POST", url: "x", status: 400 } });

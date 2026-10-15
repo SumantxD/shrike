@@ -164,7 +164,7 @@ export function cacheMarks(view: ActionView | undefined, placeId: string): Map<s
   const evs = view ? allEvents(view).filter((e) => e.kind === "cache_op" && e.place?.id === placeId && e.cache?.key !== undefined) : [];
   for (const e of evs.sort((a, b) => a.startMs - b.startMs)) {
     const { op, key, hit } = e.cache!;
-    const mark: CacheMark | undefined = hit === true ? "hit" : hit === false ? "miss" : /^(set|setex|psetex|setnx|mset|hset|incr|incrby|decr|decrby|lpush|rpush|sadd|zadd|expire)$/.test(op) ? "set" : /^(del|delete|unlink|hdel|srem)$/.test(op) ? "delete" : undefined;
+    const mark: CacheMark | undefined = hit === true ? "hit" : hit === false ? "miss" : /^(set|setex|psetex|setnx|mset|hset|incr|incrby|decr|decrby|lpush|rpush|sadd|zadd|expire|json\.set|json\.mset|json\.merge|json\.arrappend|json\.arrinsert|json\.numincrby|json\.strappend|json\.toggle)$/.test(op) ? "set" : /^(del|delete|unlink|hdel|srem|json\.del|json\.forget)$/.test(op) ? "delete" : undefined;
     if (mark && !(m.get(key!) === "set" && mark !== "delete")) m.set(key!, mark);
   }
   return m;
