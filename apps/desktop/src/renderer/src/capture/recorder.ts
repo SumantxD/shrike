@@ -14,7 +14,7 @@ import { useActions } from "../stores/actions.ts";
 import { projectPlaces, useThread } from "../stores/thread.ts";
 import { compareLocalLive } from "@shrike/correlator/compare";
 import { useProject } from "../stores/project.ts";
-import { diveTarget, forShare, frameCount, makeScene, maxCodeRows, paint, paintSplit, snippetRange, splitFrame, type Aspect, type ClipScene, type DiveCode, type Shot } from "./paint.ts";
+import { diveTarget, forShare, frameCount, makeCard, makeScene, maxCodeRows, paint, paintCard, paintSplit,snippetRange, splitFrame, type Aspect, type ClipScene, type DiveCode, type Shot } from "./paint.ts";
 
 const FPS = 30;
 
@@ -47,17 +47,22 @@ async function loadShot(actionId: string, target: Shot["target"]): Promise<Shot 
   return img.naturalWidth ? { img, w: img.naturalWidth, h: img.naturalHeight, target } : undefined;
 }
 
-/** Everything a clip needs, loaded up front so painting never waits. */
-export async function prepareClip(opts: { actionId: string; aspect: Aspect; captions: boolean; showPage?: boolean }): Promise<ClipScene> {
-  const raw = useActions.getState().byId[opts.actionId];
+/** A trip as it may leave the screen (#52), with the fonts it is painted in loaded. */
+async function shareable(actionId: string, showPage: boolean) {
+  const raw = useActions.getState().byId[actionId];
   if (!raw) throw new Error("That click isn't in this session anymore. Pick another one.");
-  const { view, shot: withShot } = forShare(raw, !!opts.showPage, useProject.getState().project?.redact?.keep); // #52
+  const { view, shot: withShot } = forShare(raw, showPage, useProject.getState().project?.redact?.keep);
   const trip = buildTrip(view, useThread.getState().expanded, projectPlaces());
   if (!trip.stations.length) throw new Error("This click has nothing to show yet.");
-  const steps = toSteps(view);
-
   const fonts = ["400 20px", "500 20px", "600 20px"].flatMap((w) => [`${w} "Space Grotesk"`, `${w} "JetBrains Mono"`]);
   await Promise.allSettled([...fonts, '700 20px "JetBrains Mono"'].map((f) => document.fonts.load(f)));
+  return { view, trip, withShot };
+}
+
+/** Everything a clip needs, loaded up front so painting never waits. */
+export async function prepareClip(opts: { actionId: string; aspect: Aspect; captions: boolean; showPage?: boolean }): Promise<ClipScene> {
+  const { view, trip, withShot } = await shareable(opts.actionId, !!opts.showPage);
+  const steps = toSteps(view);
 
   let dive: DiveCode | undefined;
   const di = diveTarget(trip);
@@ -108,10 +113,36 @@ async function splitPainter(pair: Pair, captions: boolean, showPage: boolean): P
   };
 }
 
-type ClipOpts = { actionId?: string; aspect: Aspect; captions: boolean; compare?: Pair | null; showPage?: boolean };
+type ClipOpts = { actionId?: string; aspect: Aspect; captions: boolean; compare?: Pair | null; showPage?: boolean; card?: boolean; values?: boolean };
+
+/** LV4 (#64): one still of the trip (or the local vs live split) as a card; 9:16 means the 1080x1350 portrait card. */
+async function cardPainter(opts: ClipOpts, actionId: string | undefined): Promise<Painter> {
+  const ids = opts.compare ? [opts.compare.local, opts.compare.live] : [actionId!];
+  const sides = await Promise.all(
+    ids.map(async (id) => {
+      const { view, trip, withShot } = await shareable(id, !!opts.showPage);
+      return { view, trip, shot: withShot ? await loadShot(view.id, view.root.target) : undefined };
+    }),
+  );
+  const { byId } = useActions.getState();
+  const diff = opts.compare ? compareLocalLive(byId[opts.compare.local]!, byId[opts.compare.live]!) : undefined;
+  const card = makeCard({ portrait: opts.aspect === "9:16", sides, values: !!opts.values, caption: diff && !diff.sides ? diff.verdict : undefined });
+  const panes = card.panes.map((p) => {
+    const c = document.createElement("canvas");
+    c.width = p.box.w;
+    c.height = p.box.h;
+    const ctx = c.getContext("2d");
+    if (!ctx) throw new Error("Couldn't set up the card canvas.");
+    paint(ctx, p.scene, p.t);
+    return c;
+  });
+  return { W: card.W, H: card.H, frames: 1, draw: (ctx) => paintCard(ctx, card, panes) };
+}
 
 const painterFor = (opts: ClipOpts, actionId: string | undefined): Promise<Painter> =>
-  opts.compare
+  opts.card
+    ? cardPainter(opts, actionId)
+    : opts.compare
     ? splitPainter(opts.compare, opts.captions, !!opts.showPage)
     : prepareClip({ actionId: actionId!, aspect: opts.aspect, captions: opts.captions, showPage: opts.showPage }).then((scene) => ({ W: scene.frame.W, H: scene.frame.H, frames: frameCount(scene.tl, FPS), draw: (c: CanvasRenderingContext2D, t: number) => paint(c, scene, t) }));
 
@@ -123,6 +154,27 @@ export async function previewClip(opts: ClipOpts, canvas: HTMLCanvasElement): Pr
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Couldn't set up the clip canvas.");
   clip.draw(ctx, 1);
+}
+
+/** LV4 (#64): the card as a PNG, copied to the clipboard, then the save dialog. path is null if the dialog was cancelled. */
+export async function saveCard(opts: ClipOpts): Promise<{ path: string | null; copied: boolean }> {
+  const actionId = opts.actionId ?? useThread.getState().focus.actionId ?? undefined;
+  if (!actionId && !opts.compare) throw new Error("Pick a click first.");
+  const card = await painterFor({ ...opts, card: true }, actionId);
+  const canvas = document.createElement("canvas");
+  canvas.width = card.W;
+  canvas.height = card.H;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Couldn't set up the card canvas.");
+  card.draw(ctx, 0);
+  const blob = await new Promise<Blob | null>((ok) => canvas.toBlob(ok, "image/png"));
+  if (!blob) throw new Error("The card came out empty.");
+  const copied = await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]).then(
+    () => true,
+    () => false,
+  );
+  const path = await api().saveImage(new Uint8Array(await blob.arrayBuffer()), `shrike-${useProject.getState().project?.name ?? "app"}-${card.W}x${card.H}`);
+  return { path, copied };
 }
 
 /**

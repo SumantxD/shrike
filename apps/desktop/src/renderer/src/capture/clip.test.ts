@@ -4,7 +4,7 @@ import type { ActionView, DebugEvent } from "@shrike/schema";
 import type { Trip } from "../lib/thread-layout.ts";
 import { buildTrip, FALLBACK, knownPlaces, LANE_X, layoutTrip } from "../lib/thread-layout.ts";
 import { curlSignup, payNow } from "../thread/fixtures.ts";
-import { cropAround, diveTarget, fitValue, forShare, frameCount, frameFor, lengthOf, makeScene, outPoints, partial, phaseAt, retPoints, rng, snippetRange, splitFrame, timeline, toCanvas, totalOf } from "./paint.ts";
+import { cropAround, diveTarget, fitValue, forShare, frameCount, frameFor, lengthOf, makeCard, makeScene, outPoints, partial, phaseAt, retPoints, rng, snippetRange, splitFrame, timeline, toCanvas, totalOf } from "./paint.ts";
 
 const PL = [FALLBACK.screen, FALLBACK.page, FALLBACK.server, FALLBACK.database];
 const st = (lane: 0 | 1 | 2 | 3, p: Partial<Trip["stations"][number]> = {}): Trip["stations"][number] => ({
@@ -39,6 +39,53 @@ test("#52: a live trip's clip has masked values and no screenshot unless shown; 
   assert.ok(!("shot" in scene) || scene.shot === undefined, "the screenshot is absent, not covered");
   assert.equal(forShare(live, true).shot, true, "the user can turn the page on");
   assert.match(buildTrip(forShare(live, false, ["name"]).view).stations.map((s) => s.chip ?? "").join(" "), /Ada Lovelace/, "redact.keep spares a key");
+});
+
+test("trip card (#64): 1200x630 and 1080x1350, shapes only by default, a live trip masked with no screenshot, the same every time", () => {
+  const root = { id: "r", traceId: "t", origin: "browser", kind: "user_action", name: 'Clicked "Save"', trigger: "click", startMs: 0, status: "ok", live: true } satisfies DebugEvent;
+  const url = "https://abc.supabase.co/rest/v1/orders?select=*&email=eq.ada.lovelace%40shop.com";
+  const q = { id: "q", traceId: "t", origin: "browser", kind: "db_query", name: "SELECT * FROM orders WHERE email = $1", startMs: 5, durationMs: 210, status: "ok", live: true, place: { id: "data:supabase", kind: "data", name: "Supabase" }, db: { system: "postgres", statement: "SELECT * FROM orders WHERE email = $1", params: '["ada.lovelace@shop.com"]' }, http: { method: "GET", url, status: 200, resBody: "[]" }, args: ["{ email: 'Ada Lovelace street' }"], returned: "0 rows" } satisfies DebugEvent;
+  const fn = { id: "f", traceId: "t", origin: "browser", kind: "function", name: "loadOrders", startMs: 2, durationMs: 220, status: "ok", live: true, args: ["{ email: 'ada.lovelace@shop.com' }"] } satisfies DebugEvent;
+  const req = { id: "h", traceId: "t", origin: "browser", kind: "http_request", name: "GET", startMs: 3, durationMs: 215, status: "ok", live: true, http: { method: "GET", url, status: 200 } } satisfies DebugEvent;
+  const flags = [{ kind: "empty_result", eventId: "q", message: "Supabase answered with 0 rows from orders. Row level security can do this." }] satisfies ActionView["flags"];
+  const live = { id: "r", traceId: "t", trigger: "click", label: root.name, startMs: 0, durationMs: 230, status: "ok", complete: true, tree: [{ event: fn, children: [{ event: req, children: [] }, { event: q, children: [] }] }], root, summary: { headline: "", steps: [], stats: { files: 0, functions: 0, requests: 1, queries: 1, logs: 0, errors: 0, totalMs: 230 } }, flags } satisfies ActionView;
+  const side = (v: ActionView, showPage = false) => {
+    const s = forShare(v, showPage);
+    return { view: s.view, trip: buildTrip(s.view), ...(s.shot ? { shot: { img: {} as CanvasImageSource, w: 10, h: 10 } } : {}) };
+  };
+  const card = makeCard({ portrait: false, sides: [side(live)], values: false });
+  assert.deepEqual([card.W, card.H], [1200, 630]);
+  assert.equal(card.caption, "Supabase answered with 0 rows from orders.");
+  assert.deepEqual(card.stats, [{ label: "TIME", values: ["230 ms"] }, { label: "STEPS", values: ["4"] }, { label: "ROWS", values: ["0"] }]);
+  assert.deepEqual(card.footer, ["Seen with Shrike · see what your app does", "github.com/SumantxD/shrike"]);
+  const pane = card.panes[0]!;
+  assert.equal(pane.scene.shot, undefined, "no live page screenshot by default");
+  assert.ok(pane.scene.trip.stations.every((s) => !("chip" in s)), "value chips are absent, not covered");
+  const json = JSON.stringify(card);
+  assert.doesNotMatch(json, /ada|lovelace|Lovelace|select=|email=/i);
+  assert.ok(pane.box.x + pane.box.w <= card.W && pane.box.y + pane.box.h <= card.H && card.head.x + card.head.w < pane.box.x);
+  assert.equal(JSON.stringify(makeCard({ portrait: false, sides: [side(live)], values: false })), JSON.stringify(card), "same card every time");
+  assert.ok(makeCard({ portrait: false, sides: [side(live, true)], values: false }).panes[0]!.scene.shot, "Show the page puts it back");
+  const tall = makeCard({ portrait: true, sides: [side(live)], values: false });
+  assert.deepEqual([tall.W, tall.H], [1080, 1350]);
+
+  const local = payNow(0);
+  assert.ok(makeCard({ portrait: false, sides: [side(local)], values: true }).panes[0]!.scene.trip.stations.some((s) => s.chip), "Show values keeps a local trip's chips");
+  assert.ok(makeCard({ portrait: false, sides: [side(local)], values: false }).panes[0]!.scene.trip.stations.every((s) => !s.chip));
+  const shown = JSON.stringify(makeCard({ portrait: false, sides: [side(live)], values: true }).panes[0]!.scene.trip);
+  assert.doesNotMatch(shown, /ada|lovelace/i, "a live trip stays masked with values on");
+
+  const unmasked = { ...live, root: { ...root, live: undefined } };
+  assert.match(JSON.stringify(makeCard({ portrait: false, sides: [side(unmasked)], values: true }).panes[0]!.scene.trip), /ada\.lovelace/, "values on: a local trip shows them");
+  assert.doesNotMatch(JSON.stringify(makeCard({ portrait: false, sides: [side(unmasked)], values: false })), /ada|lovelace|select=|email=/i, "shapes only hides a local trip's values too");
+  const split = makeCard({ portrait: true, sides: [side({ ...unmasked, durationMs: 50 }), side(live)], values: false });
+  assert.deepEqual([split.W, split.H, split.kicker, split.panes.length], [1200, 630, "Local vs Live", 2], "local vs live is always landscape");
+  assert.deepEqual(split.stats[0], { label: "TIME", values: ["50 ms", "230 ms"] });
+  const [a, b] = split.panes.map((p) => p.box);
+  assert.ok(a!.x + a!.w <= split.stat.x && split.stat.x + split.stat.w <= b!.x && b!.x + b!.w <= split.W);
+
+  const long = { ...trip, stations: [...trip.stations.slice(0, 5), ...Array.from({ length: 20 }, () => st(2))] };
+  assert.equal(makeCard({ portrait: false, sides: [{ view: local, trip: long }], values: false }).panes[0]!.scene.trip.stations.length, 5, "20+ steps: the path to where it broke");
 });
 
 test("timeline: about 8s with every phase, shorter without snap/dive; frames are exact", () => {

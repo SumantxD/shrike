@@ -1,8 +1,9 @@
-import { color, font } from "@shrike/design";
+import { color, font, radius } from "@shrike/design";
 import { maskAction } from "@shrike/redact";
-import type { ActionView } from "@shrike/schema";
+import type { ActionView, DebugEvent, TimelineNode } from "@shrike/schema";
 import type { Token } from "../lib/highlight.ts";
 import { enclosingFunction } from "../lib/panes.ts";
+import { toSteps } from "../lib/steps.ts";
 import { firstFailure, layoutTrip, subLine, type PlacedStation, type Trip, type TripGeometry } from "../lib/thread-layout.ts";
 
 // Canvas2D painter for REC clips (docs/06-design.md "Recording clips"). paint(ctx, scene, t) is a pure function of t:
@@ -205,11 +206,12 @@ export interface ClipScene {
   intro: string; // caption over the intro, e.g. You clicked "Add Todo"
   knit: boolean; // verified re-run (M8)
   captions: boolean;
+  still?: boolean; // LV4: one frame for a card, without the clip's own header, caption and watermark
   seed: number;
 }
 
-export function makeScene(o: { aspect: Aspect; trip: Trip; shot?: Shot; dive?: DiveCode; intro: string; knit: boolean; captions: boolean }): ClipScene {
-  const frame = frameFor(o.aspect);
+export function makeScene(o: { aspect: Aspect; trip: Trip; shot?: Shot; dive?: DiveCode; intro: string; knit: boolean; captions: boolean; frame?: Frame; still?: boolean }): ClipScene {
+  const frame = o.frame ?? frameFor(o.aspect);
   const geo = layoutTrip(o.trip, frame.LW);
   const op = outPoints(geo);
   const rp = retPoints(geo);
@@ -422,6 +424,7 @@ export function paint(ctx: Ctx, s: ClipScene, t: number): void {
   ctx.restore();
   drawLaneHead(ctx, s, dim);
   ctx.restore();
+  if (s.still) return;
 
   ctx.save();
   drawHeader(ctx, s, tc, intro);
@@ -1178,4 +1181,214 @@ export function paintSplit(ctx: Ctx, panes: [CanvasImageSource, CanvasImageSourc
     ctx.fillText(i ? "LIVE" : "LOCAL", x, p.y + 60);
     ctx.letterSpacing = "0px";
   });
+}
+
+// ---------------------------------------------------------------- LV4: trip card (#64)
+
+export interface CardSide {
+  view: ActionView; // already through forShare
+  trip: Trip;
+  shot?: Shot;
+}
+
+export interface CardScene {
+  W: number;
+  H: number;
+  kicker: string; // 'Clicked "Save"', or Local vs Live
+  live: boolean;
+  caption: string; // the trip verdict
+  error: boolean;
+  stats: { label: string; values: string[] }[]; // one value per side
+  footer: readonly [string, string];
+  head: Box;
+  stat: Box;
+  panes: { box: Box; scene: ClipScene; t: number }[];
+}
+
+export const CARD_FOOTER = ["Seen with Shrike · see what your app does", "github.com/SumantxD/shrike"] as const;
+
+/** 1200x630, or 1080x1350 portrait. Local vs live is always landscape: its numbers sit between the two panes. */
+export function cardLayout(portrait: boolean, two: boolean): { W: number; H: number; head: Box; stat: Box; panes: Box[] } {
+  if (two) return { W: 1200, H: 630, head: { x: 56, y: 48, w: 1088, h: 132 }, stat: { x: 428, y: 196, w: 344, h: 340 }, panes: [{ x: 56, y: 196, w: 356, h: 340 }, { x: 788, y: 196, w: 356, h: 340 }] };
+  if (portrait) return { W: 1080, H: 1350, head: { x: 72, y: 88, w: 936, h: 300 }, stat: { x: 72, y: 1080, w: 936, h: 130 }, panes: [{ x: 72, y: 400, w: 936, h: 650 }] };
+  return { W: 1200, H: 630, head: { x: 64, y: 60, w: 560, h: 330 }, stat: { x: 64, y: 410, w: 560, h: 110 }, panes: [{ x: 672, y: 48, w: 464, h: 484 }] };
+}
+
+const noQuery = (s: string) => s.replace(/\?[^\s"'`]+/g, "");
+
+/** Shapes only: value chips (rows, bodies, arguments), query strings and step captions are left out; names, statuses, times and counts stay. */
+export function shapesOnly(trip: Trip): Trip {
+  return {
+    ...trip,
+    title: noQuery(trip.title),
+    verdict: noQuery(trip.verdict),
+    returned: noQuery(trip.returned),
+    forks: trip.forks.map((f) => ({ ...f, caption: "" })),
+    stations: trip.stations.map((s) => {
+      const st = { ...s, label: noQuery(s.label), caption: "" };
+      delete st.chip;
+      delete st.chipError;
+      return st;
+    }),
+  };
+}
+
+/** 20+ steps: the path to where it broke only. */
+function cardPath(t: Trip): Trip {
+  const snap = t.stations.findIndex((s) => s.snap);
+  const end = snap >= 0 ? snap : t.stations.findIndex((s) => s.status === "error");
+  return t.stations.length >= 20 && end >= 0 ? { ...t, stations: t.stations.slice(0, end + 1) } : t;
+}
+
+/** A pane's frame: about 1.2 canvas px per layout px, shrunk (to 0.75 at most) until the whole trip fits. */
+// ponytail: a trip still taller than the pane shows its end (where it broke); a card with 8+ lanes reads small. Upgrade: fold more routine steps for cards.
+function paneFrame(b: Box, trip: Trip): Frame {
+  const feedTop = 52;
+  let LW = Math.min(540, Math.max(300, b.w / 1.2));
+  const g = layoutTrip(trip, LW);
+  const need = g.endY + 44 - (g.shotY - 64);
+  if (need > ((b.h - feedTop) * LW) / b.w) LW = Math.min(b.w / 0.75, (need * b.w) / (b.h - feedTop));
+  return { W: b.w, H: b.h, k: b.w / LW, LW, feedTop, capTop: b.h };
+}
+
+const fmtTime = (ms: number) => (ms >= 1000 ? `${(ms / 1000).toFixed(1)} s` : `${Math.round(ms)} ms`);
+
+/** The last read's row count (what the click ended up showing), else the last write's; undefined when nothing said. */
+function rowsOf(v: ActionView): number | undefined {
+  const all = (ns: TimelineNode[]): DebugEvent[] => ns.flatMap((n) => [n.event, ...all(n.children)]);
+  const evs = all(v.tree);
+  const read = evs.findLast((e) => /^\d+ rows?$/.test(e.returned ?? ""))?.returned;
+  return read ? parseInt(read, 10) : evs.findLast((e) => e.change?.count !== undefined)?.change?.count;
+}
+
+/** The card for one trip, or local and live side by side. Pure: the same trip gives the same card every time. */
+export function makeCard(o: { portrait: boolean; sides: CardSide[]; values: boolean; caption?: string }): CardScene {
+  const two = o.sides.length > 1;
+  const L = cardLayout(o.portrait, two);
+  const trips = o.sides.map((s) => cardPath(o.values ? s.trip : shapesOnly(s.trip)));
+  const panes = o.sides.map((s, i) => {
+    const box = L.panes[i]!;
+    const scene = makeScene({ aspect: "9:16", trip: trips[i]!, shot: s.shot, intro: "", knit: false, captions: false, frame: paneFrame(box, trips[i]!), still: true });
+    const v = at(scene, "verdict")!;
+    return { box, scene, t: v.start + v.dur * 0.9 };
+  });
+  const rows = o.sides.map((s) => rowsOf(s.view));
+  const stats = [
+    { label: "TIME", values: trips.map((t) => fmtTime(t.ms)) },
+    { label: "STEPS", values: o.sides.map((s) => String(toSteps(s.view).length)) },
+    ...(rows.some((r) => r !== undefined) ? [{ label: "ROWS", values: rows.map((r) => (r === undefined ? "unknown" : String(r))) }] : []),
+  ];
+  const last = trips[trips.length - 1]!;
+  return { W: L.W, H: L.H, kicker: two ? "Local vs Live" : trips[0]!.title, live: o.sides.some((s) => !!s.view.root.live), caption: o.caption ?? last.verdict, error: last.status === "error", stats, footer: CARD_FOOTER, head: L.head, stat: L.stat, panes };
+}
+
+/** Composes the card around each pane's still (paint(paneCtx, pane.scene, pane.t)). */
+export function paintCard(ctx: Ctx, c: CardScene, panes: CanvasImageSource[]): void {
+  const portrait = c.H > c.W;
+  const two = c.panes.length > 1;
+  const m = c.head.x;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalAlpha = 1;
+  ctx.shadowBlur = 0;
+  ctx.letterSpacing = "0px";
+  ctx.textBaseline = "alphabetic";
+  ctx.textAlign = "left";
+  const bg = ctx.createRadialGradient(c.W * 0.3, c.H * 0.3, 0, c.W * 0.3, c.H * 0.3, Math.max(c.W, c.H) * 0.8);
+  bg.addColorStop(0, color.navy);
+  bg.addColorStop(1, color.void);
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, c.W, c.H);
+
+  c.panes.forEach((p, i) => {
+    const { x, y, w, h } = p.box;
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, radius.pane);
+    ctx.save();
+    ctx.clip();
+    ctx.drawImage(panes[i]!, x, y, w, h);
+    ctx.restore();
+    ctx.strokeStyle = color.hair;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.restore();
+  });
+
+  // Kicker, then the verdict as big as fits.
+  const { head, stat } = c;
+  const ks = portrait ? 24 : 16;
+  ctx.font = mono(ks, 600);
+  ctx.letterSpacing = `${(ks * 0.18).toFixed(1)}px`;
+  ctx.fillStyle = color.inkDim;
+  const kick = fitText(ctx, c.kicker.toUpperCase(), head.w - ks * 5);
+  ctx.fillText(kick, head.x, head.y + ks);
+  if (c.live && !two) {
+    ctx.fillStyle = color.slow;
+    ctx.fillText("LIVE", head.x + ctx.measureText(kick).width + ks * 1.2, head.y + ks);
+  }
+  ctx.letterSpacing = "0px";
+  const top = head.y + ks * 2.6;
+  const room = head.y + head.h - top;
+  let size = two ? 46 : portrait ? 80 : 56;
+  const fits = () => {
+    ctx.font = display(size, 600);
+    return wrap(ctx, c.caption, head.w, 9).length * size * 1.12 <= room;
+  };
+  while (size > 30 && !fits()) size -= 2;
+  ctx.font = display(size, 600);
+  ctx.fillStyle = c.error ? mix(color.fail, color.core, 0.72) : color.ink;
+  wrap(ctx, c.caption, head.w, Math.max(1, Math.floor(room / (size * 1.12)))).forEach((l, i) => ctx.fillText(l, head.x, top + size * 0.9 + i * size * 1.12));
+
+  // Stats: label over value; local vs live puts both values beside one label.
+  const ls = portrait ? 18 : 13;
+  const label = (text: string, x: number, y: number, fill: string = color.inkDim) => {
+    ctx.font = mono(ls, 600);
+    ctx.letterSpacing = `${(ls * 0.2).toFixed(1)}px`;
+    ctx.fillStyle = fill;
+    ctx.fillText(text, x, y);
+    ctx.letterSpacing = "0px";
+  };
+  if (!two) {
+    const vs = portrait ? 64 : 44;
+    const bw = stat.w / c.stats.length;
+    c.stats.forEach((s, i) => {
+      const x = stat.x + i * bw;
+      label(s.label, x, stat.y + ls);
+      ctx.font = mono(vs, 500);
+      ctx.fillStyle = s.label === "ROWS" && s.values[0] === "0" ? color.slow : color.ink;
+      ctx.fillText(fitText(ctx, s.values[0]!, bw - 16), x, stat.y + ls + 14 + vs * 0.85);
+    });
+  } else {
+    const cl = stat.x + stat.w * 0.25;
+    const cr = stat.x + stat.w * 0.75;
+    ctx.textAlign = "center";
+    label("LOCAL", cl, stat.y + 24);
+    label("LIVE", cr, stat.y + 24, color.slow);
+    ctx.fillStyle = color.hair;
+    ctx.fillRect(stat.x + 16, stat.y + 44, stat.w - 32, 1);
+    const rh = (stat.h - 60) / c.stats.length;
+    c.stats.forEach((s, i) => {
+      const y = stat.y + 60 + i * rh;
+      label(s.label, stat.x + stat.w / 2, y + 18);
+      ctx.font = mono(34, 500);
+      s.values.forEach((v, j) => {
+        ctx.fillStyle = j && v !== s.values[0] ? color.slow : color.ink;
+        ctx.fillText(fitText(ctx, v, stat.w / 2 - 20), j ? cr : cl, y + 62);
+      });
+    });
+    ctx.textAlign = "left";
+  }
+
+  // Footer: what made it, and where to get it.
+  const fs = portrait ? 22 : 16;
+  const fy = c.H - (portrait ? 52 : 30);
+  ctx.fillStyle = color.hair;
+  ctx.fillRect(m, fy - fs - (portrait ? 26 : 16), c.W - m * 2, 1);
+  ctx.font = mono(fs, 500);
+  ctx.fillStyle = color.inkDim;
+  ctx.fillText(c.footer[0], m, fy);
+  ctx.textAlign = "right";
+  ctx.fillStyle = mix(color.cyan, color.core, 0.35);
+  ctx.fillText(c.footer[1], c.W - m, fy);
+  ctx.textAlign = "left";
 }
