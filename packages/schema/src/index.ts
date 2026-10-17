@@ -92,7 +92,7 @@ export interface TimelineNode {
 }
 
 export interface Flag {
-  kind: "slow" | "n_plus_one" | "sequential" | "duplicate_request" | "swallowed_error" | "cache_never_hit" | "slow_outside" | "empty_result";
+    kind: "slow" | "n_plus_one" | "sequential" | "duplicate_request" | "swallowed_error" | "cache_never_hit" | "slow_outside" | "empty_result" | "blocked_request";
   eventId: string;
   message: string; // plain English, one sentence, includes numbers
   source?: SourceLocation;

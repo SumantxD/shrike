@@ -126,6 +126,8 @@ function outcome(view: View): string {
   if (outside && (view.status === "error" || reqs.some((n) => (httpStatus(n) ?? 0) >= 400))) return `${outsideText(outside)}.`;
   const fiveHundred = reqs.map(httpStatus).find((s) => s !== undefined && s >= 500);
   if (fiveHundred !== undefined) return `The server returned an error (${fiveHundred}).`;
+  const blocked = findFlags(view).find((f) => f.kind === "blocked_request");
+  if (blocked) return blocked.message;
   const noResponse = reqs.find((n) => n.event.status === "error" && httpStatus(n) === undefined);
   if (noResponse) return `The call to ${reqName(noResponse.event)} got no response.`;
   const events = allEvents(view.tree);

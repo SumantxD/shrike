@@ -31,6 +31,83 @@ export function normalizeSql(sql: string): string {
     .toLowerCase();
 }
 
+const ANALYTICS_HOSTS = ["google-analytics.com", "googletagmanager.com", "segment.com", "segment.io"];
+
+function isAnalyticsHost(host: string): boolean {
+  return ANALYTICS_HOSTS.some((h) => host === h || host.endsWith("." + h));
+}
+
+function blockedRequest(view: View): Flag | undefined {
+  let found: DebugEvent | undefined;
+  walk(view.tree, (n) => {
+    if (found) return;
+    const e = n.event;
+    if (e.kind !== "http_request" || e.origin !== "browser" || e.status !== "error") return;
+    const h = e.http;
+    if (!h) return;
+    // Only inspect requests that got no answer, or got a 401 (a cookie may have dropped).
+    if (h.status !== undefined && h.status !== 401) return;
+    try {
+      const u = new URL(h.url, "https://shrike.local");
+      if (isAnalyticsHost(u.hostname)) return;
+    } catch {
+      return;
+    }
+    found = e;
+  });
+  if (!found) return undefined;
+
+  const h = found.http!;
+  const isAbsolute = /^https?:\/\//.test(h.url);
+  
+  let host = h.url;
+  if (isAbsolute) {
+    try {
+      host = new URL(h.url).host;
+    } catch {
+      // keep the raw url
+    }
+  }
+
+    // SameSite: cross-origin + credentials + 401. Say "may": it's a guess.
+  const hasCredentials = Boolean(h.reqHeaders?.["cookie"] || h.reqHeaders?.["authorization"]);
+  if (isAbsolute && hasCredentials && h.status === 401) {
+    return {
+      kind: "blocked_request",
+      eventId: found.id,
+      message: `The browser may have dropped your login cookie on this cross-site request (SameSite).`,
+      source: found.source,
+    };
+  }
+
+  // Everything below is the "no status" case.
+  if (h.status !== undefined) return undefined;
+
+  // Mixed content: only when we know the page is https (a live-recorded page).
+  // A page served from http calling an http URL is not mixed content.
+  if (found.live && h.url.startsWith("http://")) {
+    return {
+      kind: "blocked_request",
+      eventId: found.id,
+      message: `The browser blocked an http request from an https page (mixed content).`,
+      source: found.source,
+    };
+  }
+
+  // CORS: an absolute (cross-origin) URL that never got a status.
+    // Cross-origin with no status. CORS is likely, but the server could also be down.
+  if (isAbsolute) {
+    return {
+      kind: "blocked_request",
+      eventId: found.id,
+      message: `The browser blocked this request, or ${host} didn't answer. If the server is up, it's CORS: it doesn't allow requests from this page.`,
+      source: found.source,
+    };
+  }
+
+  // A relative URL that failed with no status is a same-origin server problem, not CORS.
+  return undefined;
+}
 export function findFlags(view: View): Flag[] {
   const flags: Flag[] = [];
   const parentOf = new Map<TimelineNode, TimelineNode | undefined>();
@@ -135,6 +212,9 @@ export function findFlags(view: View): Flag[] {
       source: second.source,
     });
   }
+
+    const blocked = blockedRequest(view);
+  if (blocked) flags.push(blocked);
 
   // cache_never_hit: every lookup in the trip missed.
   const nodes = [...parentOf.keys()];

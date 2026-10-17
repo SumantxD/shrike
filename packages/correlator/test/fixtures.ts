@@ -63,3 +63,71 @@ export function payNow(opts: { authMs?: number } = {}) {
     place: { kind: "outside", id: "outside:api.stripe.com", name: "STRIPE", detail: "api.stripe.com" }, source: { file: "api/pay.ts", line: 12, precision: "exact" } });
   return { root, events: [stripe, authReq, toAuth, cache, pay, api, fetch, root], ids: { fetch, api, pay, cache, toAuth, authReq, stripe } };
 }
+
+// CORS: a cross-origin fetch from the browser fails with no status.
+export function corsBlocked() {
+  const root = ev({ kind: "user_action", origin: "browser", name: 'Clicked "Load profile"', trigger: "click", startMs: 0, durationMs: 3 });
+  const fetch = ev({
+    kind: "http_request",
+    origin: "browser",
+    parentId: root.id,
+    name: "GET https://api.example.com/me",
+    startMs: 1,
+    durationMs: 2,
+    status: "error",
+    source: { file: "src/api.ts", line: 12, precision: "exact" },
+    http: { method: "GET", url: "https://api.example.com/me" },
+  });
+  return { root, events: [fetch, root], ids: { fetch } };
+}
+
+// Mixed content: an https page calls an http URL.
+export function mixedContent() {
+  const root = ev({ kind: "user_action", origin: "browser", name: 'Clicked "Load image"', trigger: "click", startMs: 0, durationMs: 3 });
+  const fetch = ev({
+    kind: "http_request",
+    origin: "browser",
+    parentId: root.id,
+    name: "GET http://insecure.example.com/img.png",
+    startMs: 1,
+    durationMs: 2,
+    status: "error",
+    live: true,
+    source: { file: "src/api.ts", line: 30, precision: "exact" },
+    http: { method: "GET", url: "http://insecure.example.com/img.png" },
+  });
+  return { root, events: [fetch, root], ids: { fetch } };
+}
+
+// Same-origin server down: relative URL, no status. Must NOT read as CORS.
+export function sameOriginDown() {
+  const root = ev({ kind: "user_action", origin: "browser", name: 'Clicked "Load"', trigger: "click", startMs: 0, durationMs: 3 });
+  const fetch = ev({
+    kind: "http_request",
+    origin: "browser",
+    parentId: root.id,
+    name: "GET /api/data",
+    startMs: 1,
+    durationMs: 2,
+    status: "error",
+    source: { file: "src/api.ts", line: 5, precision: "exact" },
+    http: { method: "GET", url: "/api/data" },
+  });
+  return { root, events: [fetch, root], ids: { fetch } };
+}
+// SameSite: a cross-origin request with credentials that came back 401.
+export function sameSiteBlocked() {
+  const root = ev({ kind: "user_action", origin: "browser", name: 'Clicked "Refresh"', trigger: "click", startMs: 0, durationMs: 3 });
+  const fetch = ev({
+    kind: "http_request",
+    origin: "browser",
+    parentId: root.id,
+    name: "GET https://api.example.com/me",
+    startMs: 1,
+    durationMs: 2,
+    status: "error",
+    source: { file: "src/api.ts", line: 20, precision: "exact" },
+    http: { method: "GET", url: "https://api.example.com/me", status: 401, reqHeaders: { cookie: "session=abc" } },
+  });
+  return { root, events: [fetch, root], ids: { fetch } };
+}
