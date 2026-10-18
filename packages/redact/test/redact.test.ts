@@ -297,6 +297,15 @@ test("#51 pii: ids, dates, times, prices, versions and timestamps that only look
   assert.equal(redactPii("+1 415 555 0123 4567 8901 234"), "+1 415 555 0123 4567 8901 234", "more than 15 digits is not a phone number");
 });
 
+test("#78: retina image and package file names that look like emails stay", () => {
+  const keep = ["logo@2x.png", "image@3x.webp", "icon@2x.svg", "name@1.2.3.tgz", "main@1.0.0.js", "LOGO@2X.PNG"];
+  for (const s of keep) assert.equal(redactPii(s), s, s);
+  assert.equal(redactPii("ann@shop.com"), "[email#1]", "a real email still masks");
+  assert.equal(redactPii("katherine@example.co.uk"), "[email#1]", "a real multi-level domain still masks");
+  assert.equal(redactPii("mail=ann%40shop.com"), "mail=[email#1]", "an encoded email still masks");
+  assert.equal(redactPii("logo@2x.png and ann@shop.com"), "logo@2x.png and [email#1]", "files stay while emails mask in the same text");
+});
+
 test("#51 pii: phone shapes, encoded values and IBANs with spaces", () => {
   assert.equal(redactPii("+1 (415) 555-0123 | 415-555-0123 | 415 555 0123 | (415) 555-0123"), "[phone#1] | [phone#2] | [phone#2] | [phone#2]");
   assert.equal(redactPii("Call +1 415 555 0123 2 times, or +44 20 7946 0958."), "Call [phone#1] 2 times, or [phone#2].", "a sentence's full stop and a number after it stay");

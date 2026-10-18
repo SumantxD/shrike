@@ -130,11 +130,16 @@ function placeholder(seen: PiiSeen, kind: string, value: string): string {
   return p;
 }
 
+// #78: file names shaped like emails (logo@2x.png, name@1.2.3.tgz) are not
+// personal data, so they stay. Only extensions that are not real TLDs are
+// listed; .zip and .mov are real domains people use for email.
+const FILE_NOT_EMAIL = /\.(?:png|jpe?g|webp|gif|svg|avif|ico|bmp|tgz|m?js|cjs|css|map|json|wasm|woff2?)$/i;
+
 /** Emails, phone numbers and IBANs become [email#n], [phone#n] and [iban#n]. Pure; pass one map per trip to keep the numbers stable. */
 export function redactPii(s: string, seen: PiiSeen = new Map()): string {
   if (!s) return s;
   return s
-    .replace(EMAIL, (m) => placeholder(seen, "email", m.replace(/%40/i, "@").toLowerCase())) // as typed, Ann@ and ann@ are one user
+    .replace(EMAIL, (m) => (FILE_NOT_EMAIL.test(m) ? m : placeholder(seen, "email", m.replace(/%40/i, "@").toLowerCase()))) // as typed, Ann@ and ann@ are one user
     .replace(PHONE, (m) => {
       const digits = m.replace(/%2B/i, "+").replace(/[^\d+]/g, "");
       const n = digits.replace("+", "").length;
