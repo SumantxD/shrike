@@ -297,12 +297,23 @@ test("#51 pii: ids, dates, times, prices, versions and timestamps that only look
   assert.equal(redactPii("+1 415 555 0123 4567 8901 234"), "+1 415 555 0123 4567 8901 234", "more than 15 digits is not a phone number");
 });
 
+test("#78: retina image and package file names that look like emails stay", () => {
+  const keep = ["logo@2x.png", "image@3x.webp", "icon@2x.svg", "name@1.2.3.tgz", "main@1.0.0.js", "LOGO@2X.PNG"];
+  for (const s of keep) assert.equal(redactPii(s), s, s);
+  assert.equal(redactPii("ann@shop.com"), "[email#1]", "a real email still masks");
+  assert.equal(redactPii("katherine@example.co.uk"), "[email#1]", "a real multi-level domain still masks");
+  assert.equal(redactPii("mail=ann%40shop.com"), "mail=[email#1]", "an encoded email still masks");
+  assert.equal(redactPii("logo@2x.png and ann@shop.com"), "logo@2x.png and [email#1]", "files stay while emails mask in the same text");
+  assert.equal(redactPii("avatars/ann@shop.com.png"), "avatars/[email#1]", "an email before an extension still masks");
+});
+
 test("#80: emails with accented letters are fully masked", () => {
   const seen: PiiSeen = new Map();
   assert.equal(redactPii("jöhn@shop.com", seen), "[email#1]");
   assert.equal(redactPii("josé@shop.com", seen), "[email#2]", "no letters leak before the placeholder");
   assert.equal(redactPii("Jöhn@shop.com and jöhn@shop.com", seen), "[email#1] and [email#1]", "accented case variants read the same");
   assert.equal(redactPii("rené", new Map()), "rené", "accents without @ stay as they are");
+  assert.equal(redactPii("jóse@shop.com"), "[email#1]", "decomposed accents (NFD) mask too");
 });
 
 test("#51 pii: phone shapes, encoded values and IBANs with spaces", () => {
