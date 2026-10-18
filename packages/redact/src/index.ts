@@ -105,8 +105,7 @@ export function redactText(s: string, rules?: RedactRules, pii?: PiiSeen): strin
 export type PiiSeen = Map<string, string>; // "email:ann@shop.com" -> "[email#1]"
 
 // A PostgREST filter's operator stays visible: email=eq.[email#1], not email=[email#1].
-// #80: Unicode letters, combining marks (NFD) and digits in the local part and the lookbehinds, so jöhn@ never leaks as jö[email#1].
-const EMAIL = /(?:(?<![\p{L}\p{M}\p{N}_.%+-])(?!(?:n?eq|i?like)\.)|(?<=(?<![\p{L}\p{M}\p{N}_.%+-])(?:n?eq|i?like)\.))[\p{L}\p{M}\p{N}._%+-]{1,64}(?:@|%40)[A-Za-z0-9-]{1,63}(?:\.[A-Za-z0-9-]{1,63}){0,8}\.[A-Za-z]{2,24}(?![\w-])/giu;
+const EMAIL = /(?:(?<![\w.%+-])(?!(?:n?eq|i?like)\.)|(?<=(?<![\w.%+-])(?:n?eq|i?like)\.))[A-Za-z0-9._%+-]{1,64}(?:@|%40)[A-Za-z0-9-]{1,63}(?:\.[A-Za-z0-9-]{1,63}){0,8}\.[A-Za-z]{2,24}(?![\w-])/gi;
 // A "+" (E.164) or a separator pattern; a bare run of digits is an id, so it stays.
 const PHONE = /(?<![\w+%.-])(?:(?:\+|%2B)\d[\d ().-]{5,17}\d\d|\(\d{3}\) ?\d{3}[-. ]\d{4}|\d{3}([-. ])\d{3}\1\d{4})(?![\w-]|\.\d|%| \d{3})/gi; // and not the start of a longer run of digit groups
 const IBAN = /(?<![A-Za-z0-9])[A-Z]{2}\d{2}(?: ?[A-Z0-9]{4}){2,7}(?: ?[A-Z0-9]{1,3})?(?![A-Za-z0-9])/g;
@@ -133,8 +132,8 @@ function placeholder(seen: PiiSeen, kind: string, value: string): string {
 
 // #78: file names shaped like emails (logo@2x.png, name@1.2.3.tgz) are not
 // personal data, so they stay. Only extensions that are not real TLDs are
-// listed; .zip and .mov are real domains people use for email. ann@shop.com.png still masks.
-const FILE_NOT_EMAIL = /(?<!\.[a-z]{2,24})\.(?:png|jpe?g|webp|gif|svg|avif|ico|bmp|tgz|m?js|cjs|css|map|json|wasm|woff2?)$/i;
+// listed; .zip and .mov are real domains people use for email.
+const FILE_NOT_EMAIL = /\.(?:png|jpe?g|webp|gif|svg|avif|ico|bmp|tgz|m?js|cjs|css|map|json|wasm|woff2?)$/i;
 
 /** Emails, phone numbers and IBANs become [email#n], [phone#n] and [iban#n]. Pure; pass one map per trip to keep the numbers stable. */
 export function redactPii(s: string, seen: PiiSeen = new Map()): string {
@@ -144,7 +143,15 @@ export function redactPii(s: string, seen: PiiSeen = new Map()): string {
     .replace(PHONE, (m) => {
       const digits = m.replace(/%2B/i, "+").replace(/[^\d+]/g, "");
       const n = digits.replace("+", "").length;
-      return n < 8 || n > 15 ? m : placeholder(seen, "phone", digits); // E.164 allows 15 at most
+      if (n < 8 || n > 15) return m; // E.164 allows 15 at most
+      // #79: a "+" value with exactly one "." and no other separator is a decimal - a latitude like
+      // +37.774912 - not a phone number, so it stays. Dots between groups (+1.415.555.0123) are a
+      // real way to write a number, and spaces, dashes or parens mean E.164, so both still mask.
+      if (/^(?:\+|%2B)/i.test(m)) {
+        const rest = m.replace(/^(?:\+|%2B)/i, "");
+        if (!/[- ()]/.test(rest) && (rest.match(/\./g) ?? []).length === 1) return m;
+      }
+      return placeholder(seen, "phone", digits);
     })
     .replace(IBAN, (m) => (ibanValid(m) ? placeholder(seen, "iban", m.replace(/ /g, "")) : m));
 }
