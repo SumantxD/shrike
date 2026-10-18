@@ -297,6 +297,14 @@ test("#51 pii: ids, dates, times, prices, versions and timestamps that only look
   assert.equal(redactPii("+1 415 555 0123 4567 8901 234"), "+1 415 555 0123 4567 8901 234", "more than 15 digits is not a phone number");
 });
 
+test("#80: emails with accented letters are fully masked", () => {
+  const seen: PiiSeen = new Map();
+  assert.equal(redactPii("jöhn@shop.com", seen), "[email#1]");
+  assert.equal(redactPii("josé@shop.com", seen), "[email#2]", "no letters leak before the placeholder");
+  assert.equal(redactPii("Jöhn@shop.com and jöhn@shop.com", seen), "[email#1] and [email#1]", "accented case variants read the same");
+  assert.equal(redactPii("rené", new Map()), "rené", "accents without @ stay as they are");
+});
+
 test("#51 pii: phone shapes, encoded values and IBANs with spaces", () => {
   assert.equal(redactPii("+1 (415) 555-0123 | 415-555-0123 | 415 555 0123 | (415) 555-0123"), "[phone#1] | [phone#2] | [phone#2] | [phone#2]");
   assert.equal(redactPii("Call +1 415 555 0123 2 times, or +44 20 7946 0958."), "Call [phone#1] 2 times, or [phone#2].", "a sentence's full stop and a number after it stay");
