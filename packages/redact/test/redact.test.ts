@@ -305,6 +305,16 @@ test("#78: retina image and package file names that look like emails stay", () =
   assert.equal(redactPii("katherine@example.co.uk"), "[email#1]", "a real multi-level domain still masks");
   assert.equal(redactPii("mail=ann%40shop.com"), "mail=[email#1]", "an encoded email still masks");
   assert.equal(redactPii("logo@2x.png and ann@shop.com"), "logo@2x.png and [email#1]", "files stay while emails mask in the same text");
+  assert.equal(redactPii("avatars/ann@shop.com.png"), "avatars/[email#1]", "an email before an extension still masks");
+});
+
+test("#80: emails with accented letters are fully masked", () => {
+  const seen: PiiSeen = new Map();
+  assert.equal(redactPii("jöhn@shop.com", seen), "[email#1]");
+  assert.equal(redactPii("josé@shop.com", seen), "[email#2]", "no letters leak before the placeholder");
+  assert.equal(redactPii("Jöhn@shop.com and jöhn@shop.com", seen), "[email#1] and [email#1]", "accented case variants read the same");
+  assert.equal(redactPii("rené", new Map()), "rené", "accents without @ stay as they are");
+  assert.equal(redactPii("jóse@shop.com"), "[email#1]", "decomposed accents (NFD) mask too");
 });
 
 test("#51 pii: phone shapes, encoded values and IBANs with spaces", () => {
