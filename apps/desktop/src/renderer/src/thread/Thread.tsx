@@ -210,13 +210,13 @@ export function Thread() {
   }, []);
 
   const onMiniKey = (e: React.KeyboardEvent<HTMLElement>) => {
-    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+    if (e.key === "ArrowDown" || e.key === "ArrowUp" || e.key === "Home" || e.key === "End") {
       e.preventDefault();
       e.stopPropagation();
       const btns = Array.from(e.currentTarget.querySelectorAll<HTMLButtonElement>("button"));
       const idx = btns.indexOf(e.target as HTMLButtonElement);
       if (idx === -1) return;
-      const next = e.key === "ArrowDown" ? btns[idx + 1] : btns[idx - 1];
+      const next = e.key === "ArrowDown" ? btns[idx + 1] : e.key === "ArrowUp" ? btns[idx - 1] : e.key === "Home" ? btns[0] : btns[btns.length - 1];
       next?.focus();
     }
   };
