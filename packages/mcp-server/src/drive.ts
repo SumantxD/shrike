@@ -41,11 +41,21 @@ export function registerDriveTools(tool: Tool, host: ShrikeHost, d: ShrikeDriver
 
   tool(
     "list_trips",
-    "List the trips Shrike recorded (each click, page load or request and everything it caused), newest first, as shown in Shrike's Thread.",
-    { limit: z.number().int().min(1).max(100).optional() },
-    async ({ limit }) => {
-      const list = host.listActions().sort((a, b) => b.startMs - a.startMs).slice(0, limit ?? 20);
-      if (!list.length) return "No trips yet.";
+    "List the trips Shrike recorded (each click, page load or request and everything it caused), newest first, as shown in Shrike's Thread. status keeps only trips that broke, were slow or worked; match keeps only trips whose label contains the text.",
+    {
+      limit: z.number().int().min(1).max(100).optional().describe("How many to return (default 20)"),
+      status: z.enum(["broke", "slow", "worked"]).optional().describe("Keep only trips with this status, the words this tool prints"),
+      match: z.string().max(200).optional().describe("Keep only trips whose label contains this text, ignoring case"),
+    },
+    async ({ limit, status, match }) => {
+      const all = host.listActions();
+      if (!all.length) return "No trips yet.";
+      const q = match?.toLowerCase();
+      const list = all
+        .filter((a) => (!status || (status === "broke" ? a.status === "error" : status === "slow" ? a.status === "slow" : a.status === "ok")) && (!q || a.label.toLowerCase().includes(q)))
+        .sort((a, b) => b.startMs - a.startMs)
+        .slice(0, limit ?? 20);
+      if (!list.length) return `No ${status ? (status === "broke" ? "broken" : status) + " " : ""}trips${match ? ` match ${match}` : ""}.`;
       const at = (a: (typeof list)[number]) => {
         const s = a.summary?.steps.find((x) => !x.ok && x.source)?.source;
         return s ? `  at ${s.file}:${s.line}` : "";

@@ -16,6 +16,7 @@ test("B5: outside clients can drive Shrike; Shrike's own brain never sees these 
   const did: string[] = [];
   const flows: Flow[] = [{ id: "add-a-todo", name: "Add a todo", steps: [{ type: "click", name: "Add Todo" }], lastRun: { at: 1, ok: false, actionIds: ["t1"] } }];
   const trip = { id: "t1", label: 'Clicked "Add Todo"', status: "error", durationMs: 12, startMs: 5, summary: { steps: [{ ok: true, text: "POST /api/todos", eventId: "e1" }, { ok: false, text: "createTodo threw", eventId: "e2", source: { file: "server/todos.controller.ts", line: 18, precision: "exact" } }] } } as unknown as ActionView;
+  const trip2 = { id: "t2", label: "Opened the settings page", status: "ok", durationMs: 3, startMs: 9, summary: { steps: [] } } as unknown as ActionView;
   const drive: ShrikeDriver = {
     openProject: async (r) => (did.push(`open ${r}`), { root: r, name: "todo-app", frontend: "vite-react", backend: "express", routes: [{ method: "GET", path: "/" }] } as ProjectInfo),
     run: async () => (did.push("run"), { state: "running", url: "http://localhost:5173" }),
@@ -28,7 +29,7 @@ test("B5: outside clients can drive Shrike; Shrike's own brain never sees these 
     runFlow: async (id) => (did.push(`replay ${id}`), { ok: true, actionIds: ["t2", "t3"] }),
     askAgent: async (goal) => (did.push(`ask ${goal}`), { runId: "r1", status: "done", summary: "userId was undefined." }),
   };
-  const host = { projectRoot: () => root, listActions: () => [trip], getAction: (id: string) => (id === "t1" ? trip : undefined), drive } as unknown as ShrikeHost;
+  const host = { projectRoot: () => root, listActions: () => [trip, trip2], getAction: (id: string) => (id === "t1" ? trip : id === "t2" ? trip2 : undefined), drive } as unknown as ShrikeHost;
   const server = await startMcpServer(host);
   const connect = async (internal: boolean) => {
     const c = new Client({ name: internal ? "shrike" : "Claude Code", version: "0" });
@@ -50,7 +51,13 @@ test("B5: outside clients can drive Shrike; Shrike's own brain never sees these 
     assert.match((await call("open_project", { path: root })).text, /Opened todo-app .*vite-react.*1 routes/);
     assert.equal((await call("open_project", { path: "relative/dir" })).isError, true);
     assert.match((await call("run_app")).text, /running at http:\/\/localhost:5173/);
-    assert.match((await call("list_trips")).text, /^t1 {2}Clicked "Add Todo" {2}broke {2}12ms {2}at server\/todos\.controller\.ts:18$/);
+    assert.match((await call("list_trips")).text, /^t2 {2}Opened the settings page {2}worked {2}3ms\nt1 {2}Clicked "Add Todo" {2}broke {2}12ms {2}at server\/todos\.controller\.ts:18$/);
+    assert.match((await call("list_trips", { status: "worked" })).text, /^t2 {2}Opened the settings page {2}worked {2}3ms$/);
+    assert.match((await call("list_trips", { match: "add todo" })).text, /^t1 {2}Clicked "Add Todo" {2}broke {2}12ms {2}at server\/todos\.controller\.ts:18$/);
+    assert.match((await call("list_trips", { status: "slow" })).text, /^No slow trips\.$/);
+    assert.match((await call("list_trips", { status: "broke", match: "/api/todos" })).text, /^No broken trips match \/api\/todos\.$/);
+    assert.equal((await call("list_trips", { status: "nope" })).isError, true, "unknown status is refused by zod");
+    assert.equal((await call("list_trips", { match: "x".repeat(201) })).isError, true, "match over 200 chars is refused by zod");
     assert.match((await call("focus_trip", { tripId: "t1" })).text, /Showing/);
     assert.equal((await call("focus_trip", { tripId: "nope" })).isError, true);
     assert.match((await call("list_flows")).text, /add-a-todo {2}"Add a todo" {2}1 steps {2}last run failed/);

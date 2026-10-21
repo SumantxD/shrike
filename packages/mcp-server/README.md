@@ -12,7 +12,7 @@ The single tool surface for every agent: Shrike's own brains and outside clients
 - `ask_options` (docs/13 M1): option cards with plain-HTML mockups; blocks like an approval, loops on each answer, times out after 9 minutes with `action: "waiting"` (`src/options.ts` writes what goes back to the agent)
 - `self_review` (docs/13 RL5): the repo's review lessons for the likely reviewers and the changed files; called with results it records them on the self-check card (only when the host sets `selfReview`)
 
-Outside clients get Recordings, Code, API, App and Fix tools, plus the drive tools (`src/drive.ts`: `open_project`, `run_app`, `list_trips`, `focus_trip`, flows, `open_file`, `ask_agent`). `propose_patch` still waits for the user's click in Shrike, and the approval card says who sent it (the client's `clientInfo` name, or "Shrike agent"). The start agent's tools (`src/start.ts`, guarded shell and preflight) are registered only for Shrike's own runs, which send `x-shrike-internal: 1`.
+Outside clients get Recordings, Code, API, App and Fix tools, plus the drive tools (`src/drive.ts`: `open_project`, `run_app`, `list_trips` with optional `status` (broke, slow or worked) and `match` (case-insensitive label text) filters, `focus_trip`, flows, `open_file`, `ask_agent`). `propose_patch` still waits for the user's click in Shrike, and the approval card says who sent it (the client's `clientInfo` name, or "Shrike agent"). The start agent's tools (`src/start.ts`, guarded shell and preflight) are registered only for Shrike's own runs, which send `x-shrike-internal: 1`.
 
 ```
 src/
