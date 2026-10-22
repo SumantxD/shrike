@@ -115,7 +115,7 @@ const mcpMethods = ["mcpState", "mcpCheck", "mcpSetEnabled", "mcpTrust", "mcpAdd
 for (const m of mcpMethods) api[m] = (...args: unknown[]) => ipcRenderer.invoke(`shrike:${m}`, ...args);
 
 // api: AP the API client
-const apiMethods = ["apiCollections", "apiCreateCollection", "apiLinkCollection", "apiUnlinkCollection", "apiReadRequest", "apiSaveRequest", "apiDeleteItem", "apiCreateFolder", "apiRenameItem", "apiReadEnvironment", "apiSaveEnvironment", "apiSend", "apiCancel", "apiHistory", "apiImport", "apiCode", "apiPickFile", "apiRoutes", "apiGuessRoutes", "apiSaveGuess"] as const satisfies readonly Exclude<keyof ShrikeApi, "on">[];
+const apiMethods = ["apiCollections", "apiCreateCollection", "apiLinkCollection", "apiUnlinkCollection", "apiReadRequest", "apiSaveRequest", "apiDeleteItem", "apiCreateFolder", "apiRenameItem", "apiReadEnvironment", "apiSaveEnvironment", "apiSend", "apiCancel", "apiHistory", "apiClearHistory", "apiImport", "apiCode", "apiPickFile", "apiRoutes", "apiGuessRoutes", "apiSaveGuess"] as const satisfies readonly Exclude<keyof ShrikeApi, "on">[];
 for (const m of apiMethods) api[m] = (...args: unknown[]) => ipcRenderer.invoke(`shrike:${m}`, ...args);
 
 contextBridge.exposeInMainWorld("shrike", api as unknown as ShrikeApi);

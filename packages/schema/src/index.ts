@@ -1413,6 +1413,7 @@ export interface ShrikeApi {
   apiSend(req: ApiRequest, opts?: ApiSendOptions): Promise<ApiSendResult>; // the user's own send: any http(s) host
   apiCancel(sendId: string): Promise<void>;
   apiHistory(): Promise<ApiHistoryEntry[]>; // last 200 for this project, newest first, redacted
+  apiClearHistory(): Promise<void>; // empties this project's request history; saved requests and collections untouched
   apiImport(kind: ApiImportKind, text?: string, name?: string): Promise<ApiCollection | ApiRequest>; // curl returns a request; the rest a new owned collection (bruno: folder dialog; text absent: file dialog)
   apiCode(req: ApiRequest, lang: ApiCodeLang, opts?: ApiSendOptions): Promise<string>;
   apiPickFile(): Promise<string | null>; // a file for a multipart field

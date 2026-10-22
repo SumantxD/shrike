@@ -374,11 +374,18 @@ export function Tree({ onPicked }: { onPicked?(): void }) {
           </>
         )}
 
-        <button type="button" className="ap-sec" aria-expanded={section.history} onClick={() => setSection({ ...section, history: !section.history })}>
-          <ChevronRight size={10} className={cx("ap-chev", section.history && "open")} aria-hidden />
-          <span className="micro">History</span>
-          {shownHistory.length > 0 && <span className="ml-auto font-mono text-[10px] text-faint">{shownHistory.length}</span>}
-        </button>
+        <div className="ap-sec-wrap">
+          <button type="button" className="ap-sec" aria-expanded={section.history} onClick={() => setSection({ ...section, history: !section.history })}>
+            <ChevronRight size={10} className={cx("ap-chev", section.history && "open")} aria-hidden />
+            <span className="micro">History</span>
+            {shownHistory.length > 0 && <span className="ml-auto font-mono text-[10px] text-faint">{shownHistory.length}</span>}
+          </button>
+          {shownHistory.length > 0 && (
+            <button type="button" className="ap-clear" aria-label="Clear history" title="Clear history" onClick={() => void useApi.getState().clearHistory()}>
+              Clear
+            </button>
+          )}
+        </div>
         {section.history &&
           (shownHistory.length ? (
             shownHistory.map((h) => (

@@ -60,6 +60,7 @@ interface ApiState extends Local {
   createFolder(colId: string, path: string): Promise<void>;
   rename(colId: string, path: string, name: string): Promise<void>;
   remove(colId: string, path: string, label: string): Promise<void>;
+  clearHistory(): Promise<void>;
   duplicate(colId: string, path: string): Promise<void>;
   move(colId: string, path: string, toCol: string, toFolder: string): Promise<void>;
   reorder(colId: string, path: string, beforePath: string): Promise<void>;
@@ -271,6 +272,18 @@ export const useApi = create<ApiState>((set, get) => {
       if (!c) return;
       setCol(c);
       set((s) => ({ tabs: s.tabs.map((t) => (t.colId === colId && (t.draft.path === path || t.draft.path.startsWith(`${path}/`)) ? { ...t, colId: undefined, draft: { ...t.draft, path: "" } } : t)) }));
+    },
+    async clearHistory() {
+      const n = get().history.length;
+      if (!n) return;
+      if (!confirm(`Clear all ${n} request${n === 1 ? "" : "s"} from History? Your saved requests are not touched.`)) return;
+      try {
+        await api().apiClearHistory();
+      } catch (e) {
+        toast(`Couldn't clear History: ${errorMessage(e)}`, "error");
+        return;
+      }
+      set({ history: [] });
     },
     async duplicate(colId, path) {
       const r = await ask(() => api().apiReadRequest(colId, path), "Couldn't copy it");

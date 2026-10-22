@@ -524,6 +524,12 @@ test("history: redacted before it's written, newest first, capped", async () => 
   assert.equal(list.length, 200);
   assert.equal(list[0]!.id, "last");
   assert.doesNotMatch(readFileSync(join(state, "api-history", `${createHash("sha1").update("/p").digest("hex").slice(0, 16)}.json`), "utf8"), /real-token|literal-token|hunter2/);
+  // clear() empties this project's history on disk and leaves other projects alone
+  const h2 = createHistory({ stateDir: () => state, projectRoot: () => "/p2" });
+  await h2.add({ id: "p2-1", at: 1, method: "GET", url: r.url, request: r });
+  await h.clear();
+  assert.deepEqual(await h.list(), []);
+  assert.equal((await h2.list()).length, 1);
   rmSync(state, { recursive: true, force: true });
 });
 

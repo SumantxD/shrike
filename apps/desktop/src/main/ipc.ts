@@ -1205,6 +1205,7 @@ export function registerIpc(win: () => BrowserWindow | undefined, appWin: AppWin
   handle("apiSend", z.union([z.tuple([requestZ]), z.tuple([requestZ, sendOptsZ])]), (req, opts) => apiSvc.send(req, opts));
   handle("apiCancel", z.tuple([z.string().min(1).max(128)]), (id) => apiSvc.cancel(id));
   handle("apiHistory", none, () => apiSvc.history());
+  handle("apiClearHistory", none, () => apiSvc.clearHistory());
   // bruno always goes through the folder dialog; a path from the page is never trusted
   handle("apiImport", z.union([z.tuple([importKindZ]), z.tuple([importKindZ, z.string().max(20 * 1024 * 1024).optional()]), z.tuple([importKindZ, z.string().max(20 * 1024 * 1024).optional(), apiName.optional()])]), (kind, text, name) =>
     apiSvc.import(kind, kind === "bruno" ? undefined : text, name),

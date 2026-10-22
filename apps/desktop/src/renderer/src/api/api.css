@@ -32,6 +32,11 @@
 .ap-tree-body { min-height: 0; flex: 1; overflow: auto; padding: 0 4px 10px; }
 .ap-sec { display: flex; width: 100%; align-items: center; gap: 5px; height: 24px; margin-top: 6px; padding: 0 6px; color: var(--ink-faint); }
 .ap-sec .micro { font-size: 9.5px; }
+/* History header row: the fold button keeps its full width, Clear sits beside it (never inside). */
+.ap-sec-wrap { display: flex; align-items: center; gap: 4px; }
+.ap-sec-wrap .ap-sec { flex: 1 1 auto; min-width: 0; }
+.ap-clear { margin-top: 6px; flex-shrink: 0; font: 500 9.5px var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--ink-faint); padding: 4px 8px; border-radius: 6px; white-space: nowrap; }
+.ap-clear:hover { color: var(--ink); background: color-mix(in srgb, var(--ink) 6%, transparent); }
 .ap-row { position: relative; display: flex; width: 100%; align-items: center; height: 26px; border-radius: 6px; border: 1px solid transparent; color: var(--ink); }
 .ap-row:hover { background: color-mix(in srgb, var(--ink) 4.5%, transparent); }
 .ap-row.on { border-color: var(--hair); background: var(--glass); box-shadow: inset 2px 0 0 var(--signal); }
