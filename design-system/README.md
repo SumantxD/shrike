@@ -237,7 +237,7 @@ Stage z scale. Use these steps for anything positioned over the stage; don't inv
 | T11 | Express track | Collapsed routine steps as one station labelled "12 steps" | Now |
 | T12 | Shape of a bug | The outline-to-meaning table in docs/06-design.md; captions use its verdict sentences | Now |
 | T13 | Probe | Violet glowing dot walking the thread with ✓ ticks (each beside its station, on the side away from its label), ending in a red FOUND IT bracket (H8) tight round the station, the words on the side away from its label | Now |
-| T14 | Trip header | Title, BROKE/WORKED verdict pill, total ms | Now |
+| T14 | Trip header | Title, BROKE/WORKED verdict pill, total ms, relative time ("just now", "4m ago") after the ms | Now |
 
 #### Shapes on discovered lanes (T15–T20, see docs/12-feature-map.md)
 

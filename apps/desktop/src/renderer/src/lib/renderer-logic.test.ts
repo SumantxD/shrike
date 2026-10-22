@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { lineDiff } from "./hud.ts";
 import { parseAnsi } from "./ansi.ts";
 import { focusIndex, type PlayStep } from "./steps.ts";
-import { statusWords } from "./format.ts";
+import { clockTime, relativeTime, statusWords } from "./format.ts";
 import { keys } from "./platform.ts";
 
 test("line diff of the killer fix", () => {
@@ -42,4 +42,14 @@ test("shortcut labels read Ctrl and Alt off macOS", () => {
   assert.equal(keys("⌃⌥ Space", false), "Ctrl+Alt+Space");
   assert.equal(keys("⌥ `", false), "Alt+`");
   assert.equal(keys("⌘", false), "Ctrl");
+});
+
+test("relativeTime reads out like a person would", () => {
+  const now = Date.parse("2026-10-22T09:00:00Z");
+  assert.equal(relativeTime(now - 2_000, now), "just now");
+  assert.equal(relativeTime(now - 12_000, now), "12s ago");
+  assert.equal(relativeTime(now - 4 * 60_000, now), "4m ago");
+  // past an hour it falls back to the clock time (used as the <time> tooltip)
+  const old = now - 2 * 3_600_000;
+  assert.equal(relativeTime(old, now), clockTime(old));
 });

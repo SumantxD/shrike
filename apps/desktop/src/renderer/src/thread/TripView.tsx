@@ -11,6 +11,8 @@ import { requestEvent, resendDiff, testStep } from "./logic.ts";
 import { useActions } from "../stores/actions.ts";
 import { toast } from "../stores/ui.ts";
 import { call } from "../lib/api.ts";
+import { useNow } from "../components/Activity.tsx";
+import { clockTime, relativeTime } from "../lib/format.ts";
 
 export interface Play {
   id: string;
@@ -58,6 +60,17 @@ function Coil({ st }: { st: St }) {
 const FORK_W = 140; // ponytail: "at the same time" is ~115px in 10px mono; measure if the copy changes
 
 export const STATION_MIME = "application/x-shrike-station"; // O8: drag a station onto Ask
+
+/** How long ago the trip started ("just now", "4m ago"). Own 1s clock subscription,
+    so only this span re-renders each tick, not TripView or the Thread. */
+function Ago({ ms }: { ms: number }) {
+  const now = useNow();
+  return (
+    <time className="th-time" dateTime={new Date(ms).toISOString()} title={clockTime(ms)}>
+      {relativeTime(ms, now)}
+    </time>
+  );
+}
 
 const EDGE = 8; // px kept clear of the stage edge (design-system space 2)
 
@@ -183,6 +196,7 @@ export const TripView = memo(function TripView(p: Props) {
         <span className="t">{trip.title}</span>
         <span className={`th-verdict ${trip.status}`}>{verdict}</span>
         <span className="th-lbl">{trip.ms}ms</span>
+        <Ago ms={view.startMs} />
         {view.root.resendOf && <span className="th-lbl">edited resend</span>}
         <TripActions view={view} />
       </div>

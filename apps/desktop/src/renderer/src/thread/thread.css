@@ -17,6 +17,8 @@
   -webkit-font-smoothing: antialiased;
 }
 .th-lbl { font: 500 10.5px var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--ink-dim); }
+/* T14: trip header relative time ("just now", "4m ago"). Same look as .th-lbl but stays lowercase. */
+.th-time { font: 500 10.5px var(--mono); letter-spacing: .16em; color: var(--ink-dim); }
 .th-sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
 /* FV16: the view toggle at the top of the stage. The Thread is the default; V switches. */
