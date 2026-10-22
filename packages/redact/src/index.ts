@@ -106,7 +106,8 @@ export type PiiSeen = Map<string, string>; // "email:ann@shop.com" -> "[email#1]
 
 // A PostgREST filter's operator stays visible: email=eq.[email#1], not email=[email#1].
 // #80: Unicode letters, combining marks (NFD) and digits in the local part and the lookbehinds, so jöhn@ never leaks as jö[email#1].
-const EMAIL = /(?:(?<![\p{L}\p{M}\p{N}_.%+-])(?!(?:n?eq|i?like)\.)|(?<=(?<![\p{L}\p{M}\p{N}_.%+-])(?:n?eq|i?like)\.))[\p{L}\p{M}\p{N}._%+-]{1,64}(?:@|%40)[A-Za-z0-9-]{1,63}(?:\.[A-Za-z0-9-]{1,63}){0,8}\.[A-Za-z]{2,24}(?![\w-])/giu;
+// #99: the same in domain labels, and letters and marks in the TLD, so user@münchen.de masks too; the bounds keep it linear.
+const EMAIL = /(?:(?<![\p{L}\p{M}\p{N}_.%+-])(?!(?:n?eq|i?like)\.)|(?<=(?<![\p{L}\p{M}\p{N}_.%+-])(?:n?eq|i?like)\.))[\p{L}\p{M}\p{N}._%+-]{1,64}(?:@|%40)[\p{L}\p{M}\p{N}-]{1,63}(?:\.[\p{L}\p{M}\p{N}-]{1,63}){0,8}\.[\p{L}\p{M}]{2,24}(?![\p{L}\p{M}\p{N}_-])/giu;
 // A "+" (E.164) or a separator pattern; a bare run of digits is an id, so it stays.
 const PHONE = /(?<![\w+%.-])(?:(?:\+|%2B)\d[\d ().-]{5,17}\d\d|\(\d{3}\) ?\d{3}[-. ]\d{4}|\d{3}([-. ])\d{3}\1\d{4})(?![\w-]|\.\d|%| \d{3})/gi; // and not the start of a longer run of digit groups
 const IBAN = /(?<![A-Za-z0-9])[A-Z]{2}\d{2}(?: ?[A-Z0-9]{4}){2,7}(?: ?[A-Z0-9]{1,3})?(?![A-Za-z0-9])/g;

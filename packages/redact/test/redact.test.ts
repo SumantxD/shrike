@@ -317,6 +317,23 @@ test("#80: emails with accented letters are fully masked", () => {
   assert.equal(redactPii("jóse@shop.com"), "[email#1]", "decomposed accents (NFD) mask too");
 });
 
+test("#99: emails with Unicode domains are fully masked", () => {
+  const seen: PiiSeen = new Map();
+  assert.equal(redactPii("user@münchen.de", seen), "[email#1]");
+  assert.equal(redactPii("ann@bücher.example", seen), "[email#2]");
+  assert.equal(redactPii("user@почта.рф", seen), "[email#3]", "a Unicode TLD masks too");
+  assert.equal(redactPii("x User@München.de and user@münchen.de y", seen), "x [email#1] and [email#1] y", "case variants read as one user and nothing leaks");
+  assert.equal(redactPii("mail=ann%40münchen.de", new Map()), "mail=[email#1]", "an encoded Unicode email masks");
+  assert.equal(redactPii("user@xn--mnchen-3ya.de", new Map()), "[email#1]", "the punycode form still masks");
+  assert.equal(redactPii("logo@2x.png and ann@münchen.de"), "logo@2x.png and [email#1]", "file names stay while Unicode emails mask");
+  assert.equal(redactPii("münchen.de and почта.рф", new Map()), "münchen.de and почта.рф", "Unicode letters without @ stay");
+  for (const s of ["a@" + "ü.".repeat(25_000), "a".repeat(25_000) + "@" + "ü".repeat(25_000)]) {
+    const start = performance.now();
+    redactPii(s);
+    assert.ok(performance.now() - start < 100, `backtracking stays linear for ${s.length} characters`);
+  }
+});
+
 test("#51 pii: phone shapes, encoded values and IBANs with spaces", () => {
   assert.equal(redactPii("+1 (415) 555-0123 | 415-555-0123 | 415 555 0123 | (415) 555-0123"), "[phone#1] | [phone#2] | [phone#2] | [phone#2]");
   assert.equal(redactPii("Call +1 415 555 0123 2 times, or +44 20 7946 0958."), "Call [phone#1] 2 times, or [phone#2].", "a sentence's full stop and a number after it stay");
