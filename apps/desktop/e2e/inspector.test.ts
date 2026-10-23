@@ -45,6 +45,23 @@ test("todo-app: the SQLITE lane shows the todos, and the broken Add Todo changed
     assert.match(await panel(win).locator(".insp-chip[aria-pressed=true]").innerText(), /todos\s+4/);
     await snap(app, "todo-01-sqlite-rows");
 
+    // #93: right-click the row and copy it as JSON, then as an SQL INSERT.
+    const fixRow = panel(win).locator("tbody tr", { hasText: "Fix the signup page on mobile" });
+    await fixRow.click({ button: "right" });
+    await panel(win).getByRole("menuitem", { name: "Copy as JSON" }).click();
+    const copiedJson = await waitFor("the row as JSON", async () => {
+      const text = await app.evaluate(({ clipboard }) => clipboard.readText());
+      return text.startsWith('{"id":2') ? text : undefined;
+    }, 5000);
+    assert.deepEqual(JSON.parse(copiedJson), { id: 2, title: "Fix the signup page on mobile", done: 0, user_id: 2 });
+    await fixRow.click({ button: "right" });
+    await panel(win).getByRole("menuitem", { name: "Copy as SQL INSERT" }).click();
+    const copiedSql = await waitFor("the row as SQL", async () => {
+      const text = await app.evaluate(({ clipboard }) => clipboard.readText());
+      return text.startsWith("INSERT INTO") ? text : undefined;
+    }, 5000);
+    assert.equal(copiedSql, `INSERT INTO "todos" ("id", "title", "done", "user_id") VALUES (2, 'Fix the signup page on mobile', 0, 2);`);
+
     // I3: the planted bug, told by the database: nothing was added.
     await panel(win).getByRole("tab", { name: /What this click changed/ }).click();
     await panel(win).getByText("Nothing changed in the database during this click.").waitFor();

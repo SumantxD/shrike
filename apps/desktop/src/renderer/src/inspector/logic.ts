@@ -210,3 +210,21 @@ export function titleParts(name: string): { head: string; sub?: string } {
   const [head, sub] = paren ? [paren[1]!, paren[2]] : name.split(" · ");
   return { head: head!.toUpperCase(), ...(sub ? { sub } : {}) };
 }
+
+/** One database row as JSON, from the redacted cells the grid already shows (#93). */
+export function rowAsJson(columns: string[], row: Cell[]): string {
+  return JSON.stringify(Object.fromEntries(columns.map((c, i) => [c, row[i] ?? null])));
+}
+
+const sqlIdent = (s: string) => `"${s.replace(/"/g, '""')}"`;
+const sqlValue = (v: Cell): string => {
+  if (v === null) return "NULL";
+  if (typeof v === "boolean") return v ? "TRUE" : "FALSE";
+  if (typeof v === "number") return String(v);
+  return `'${v.replace(/'/g, "''")}'`;
+};
+
+/** One database row as an SQL INSERT: strings single-quoted with ' doubled, numbers bare, null as NULL, booleans as TRUE/FALSE, identifiers double-quoted (#93). */
+export function rowAsInsert(table: string, columns: string[], row: Cell[]): string {
+  return `INSERT INTO ${sqlIdent(table)} (${columns.map(sqlIdent).join(", ")}) VALUES (${row.map(sqlValue).join(", ")});`;
+}

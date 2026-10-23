@@ -3,11 +3,21 @@ import type { ActionView, Cell } from "@shrike/schema";
 import { api, errorMessage } from "../lib/api.ts";
 import { Spinner } from "../components/ui.tsx";
 import { toast } from "../stores/ui.ts";
-import { changedFields, changeSummary, dataChanges, dataFocus, rowKey, rowMatches, unseenWriter, type ChangeRow } from "./logic.ts";
+import { changedFields, changeSummary, dataChanges, dataFocus, rowAsInsert, rowAsJson, rowKey, rowMatches, unseenWriter, type ChangeRow } from "./logic.ts";
 import { Problem, Quiet, useDebounced, useLook } from "./look.tsx";
 
 const PAGE = 100;
 const show = (v: Cell) => (v === null ? "null" : String(v));
+
+/** I2-copy: a row as JSON or an SQL INSERT, from the redacted cells the grid shows (#93). */
+function copyRow(table: string, columns: string[], row: Cell[], as: "json" | "sql") {
+  const text = as === "json" ? rowAsJson(columns, row) : rowAsInsert(table, columns, row);
+  const what = as === "json" ? "the row as JSON" : "the row as SQL INSERT";
+  void navigator.clipboard.writeText(text).then(
+    () => toast(`Copied ${what}.`, "ok"),
+    () => toast("Couldn't copy to the clipboard.", "error"),
+  );
+}
 
 /** I2 the database's tables and rows, I3 what the focused click changed. */
 export function DataView({ placeId, view, stationIds, tick }: { placeId: string; view?: ActionView; stationIds: string[]; tick: number }) {
@@ -25,7 +35,9 @@ export function DataView({ placeId, view, stationIds, tick }: { placeId: string;
   const rows = useLook<"rows">(table ? { op: "rows", placeId, table, limit: PAGE, orderBy: sort?.col, desc: sort?.desc, search: q || undefined } : null, [placeId, table, sort?.col, sort?.desc, q, tick]);
   const [more, setMore] = useState<Cell[][]>([]);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [menu, setMenu] = useState<{ x: number; y: number; columns: string[]; row: Cell[] } | null>(null);
   useEffect(() => setMore([]), [rows.data]);
+  useEffect(() => setMenu(null), [rows.data]);
 
   const data = rows.data?.table === table ? rows.data : undefined;
   const all = data ? [...data.rows, ...more] : [];
@@ -102,8 +114,26 @@ export function DataView({ placeId, view, stationIds, tick }: { placeId: string;
                     const key = rowKey(data.columns, data.pk, r);
                     const kind = key ? touched.get(key) : undefined;
                     const cls = kind === "added" || kind === "changed" ? kind : table === focus.table && rowMatches(data.columns, r, focus.filters) ? "hit" : undefined;
+                    const openMenu = (x: number, y: number) => setMenu({ x, y, columns: data.columns, row: r });
                     return (
-                      <tr key={key ?? i} className={cls} data-hit={cls ? "" : undefined}>
+                      <tr
+                        key={key ?? i}
+                        className={cls}
+                        data-hit={cls ? "" : undefined}
+                        tabIndex={0}
+                        aria-label={`Row ${key ?? i + 1} of ${table}`}
+                        onContextMenu={(e) => {
+                          e.preventDefault();
+                          openMenu(e.clientX, e.clientY);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || (e.shiftKey && e.key === "F10")) {
+                            e.preventDefault();
+                            const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                            openMenu(rect.left + 8, rect.bottom + 4);
+                          }
+                        }}
+                      >
                         {r.map((v, j) => (
                           <td key={j} className={v === null ? "null" : undefined} title={show(v)}>
                             {show(v)}
@@ -125,6 +155,40 @@ export function DataView({ placeId, view, stationIds, tick }: { placeId: string;
                   </button>
                 )}
               </div>
+              {menu && table && (
+                <div className="fixed inset-0 z-40" onClick={() => setMenu(null)} onContextMenu={(e) => (e.preventDefault(), setMenu(null))}>
+                  <div
+                    role="menu"
+                    aria-label="Copy row"
+                    className="ap-menu glass solid absolute"
+                    style={{ left: Math.min(menu.x, window.innerWidth - 220), top: Math.min(menu.y, window.innerHeight - 120) }}
+                    onClick={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => e.key === "Escape" && setMenu(null)}
+                  >
+                    <button
+                      role="menuitem"
+                      type="button"
+                      autoFocus
+                      onClick={() => {
+                        copyRow(table, menu.columns, menu.row, "json");
+                        setMenu(null);
+                      }}
+                    >
+                      Copy as JSON
+                    </button>
+                    <button
+                      role="menuitem"
+                      type="button"
+                      onClick={() => {
+                        copyRow(table, menu.columns, menu.row, "sql");
+                        setMenu(null);
+                      }}
+                    >
+                      Copy as SQL INSERT
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <Quiet text="Reading rows" busy />

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { ActionView, DebugEvent } from "@shrike/schema";
-import { cacheMarks, changedFields, changeSummary, dataChanges, dataFocus, formatTtl, keyFilters, outputLines, outsideCalls, parseParams, processFor, rowKey, rowMatches, routesFor, tableOf, titleParts, unseenWriter } from "./logic.ts";
+import { cacheMarks, changedFields, changeSummary, dataChanges, dataFocus, formatTtl, keyFilters, outputLines, outsideCalls, parseParams, processFor, rowAsInsert, rowAsJson, rowKey, rowMatches, routesFor, tableOf, titleParts, unseenWriter } from "./logic.ts";
 
 let n = 0;
 const ev = (p: Partial<DebugEvent>): DebugEvent => ({ id: (++n).toString(16).padStart(16, "0"), traceId: "a".repeat(32), origin: "server", kind: "function", name: "f()", startMs: n, status: "ok", ...p });
@@ -142,4 +142,22 @@ test("python-agent: Postgres writes through psycopg carry their rows, a count it
   const blind = ev({ kind: "db_query", origin: "db", place: EDGE, name: "UPDATE orders SET receipt_sent = true", db: { system: "postgres", statement: "UPDATE orders SET receipt_sent = true WHERE item = $1 RETURNING *" } });
   assert.equal(unseenWriter(tree(insert, blind), EDGE.id), "localhost:4620", "asyncpg's fetchrow can't say how many rows a non-key UPDATE changed");
   assert.equal(unseenWriter(tree({ ...insert, change: { table: "orders", op: "update", count: 0 } }), EDGE.id), undefined, "a write that matched nothing changed nothing");
+});
+
+test("rowAsJson and rowAsInsert copy a row as JSON or an SQL INSERT (#93)", () => {
+  const cols = ["id", "title", "done"];
+  assert.equal(rowAsJson(cols, [1, "buy milk", false]), '{"id":1,"title":"buy milk","done":false}');
+  assert.equal(
+    rowAsInsert("todos", cols, [1, "buy milk", false]),
+    `INSERT INTO "todos" ("id", "title", "done") VALUES (1, 'buy milk', FALSE);`,
+  );
+  // Quoting rules: a ' inside a string is doubled, NULL stays NULL, booleans become TRUE/FALSE.
+  assert.equal(
+    rowAsInsert("todos", cols, [2, "it's done", null]),
+    `INSERT INTO "todos" ("id", "title", "done") VALUES (2, 'it''s done', NULL);`,
+  );
+  assert.equal(rowAsInsert("todos", cols, [3, "x", true]).endsWith("TRUE);"), true);
+  // A redacted value copies masked: the helpers only see what the grid shows.
+  assert.equal(rowAsJson(["password"], ["[redacted:password]"]), '{"password":"[redacted:password]"}');
+  assert.equal(rowAsInsert("users", ["password"], ["[redacted:password]"]), `INSERT INTO "users" ("password") VALUES ('[redacted:password]');`);
 });
