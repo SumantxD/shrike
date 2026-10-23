@@ -90,6 +90,17 @@ test("killer demo: click Add Todo, the trip snaps in DATABASE and dives into the
     assert.match(t.stations[snap]!.chip, /NOT NULL constraint failed/);
     assert.ok(!t.stations.some((s) => s.kind === SCREEN), "SCREEN holds shots, not stations");
 
+    // #82: Copy puts the trip on the clipboard as a few plain lines.
+    await trip.locator(".th-acts button", { hasText: "Copy" }).click();
+    const copied = await waitFor("the clipboard", async () => {
+      const text = await app.evaluate(({ clipboard }) => clipboard.readText());
+      return text.startsWith('Clicked "Add Todo"') ? text : undefined;
+    }, 5000);
+    assert.match(copied, /^Clicked "Add Todo": BROKE \(\d+ms\)$/m);
+    assert.match(copied, /^Server error \(500\)$/m);
+    assert.match(copied, /^\d+\. insertTodo\(\) .*<- broke here/m);
+    assert.match(copied, /userId: undefined/);
+
     // BEFORE is the real screenshot of the app at the click.
     const img = trip.locator(".th-shot img").first();
     await img.waitFor({ timeout: 10_000 });

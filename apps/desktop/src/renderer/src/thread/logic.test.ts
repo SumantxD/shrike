@@ -1,9 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { DebugEvent } from "@shrike/schema";
-import { blockEnd, codeRange, codeTarget, inlineChips, isGuess, offsets, plannedLanes, resendDiff, resendOrder, resendSpec, testStep, visibleRange } from "./logic.ts";
+import { blockEnd, codeRange, codeTarget, inlineChips, isGuess, offsets, plannedLanes, resendDiff, resendOrder, resendSpec, testStep, tripText, visibleRange } from "./logic.ts";
 import type { ActionView } from "@shrike/schema";
-import { lanesFor } from "../lib/thread-layout.ts";
+import { buildTrip, lanesFor } from "../lib/thread-layout.ts";
+import { payNow } from "./fixtures.ts";
 
 const ev = (p: Partial<DebugEvent>): DebugEvent => ({ id: "e", traceId: "t", origin: "server", kind: "function", name: "f()", startMs: 0, status: "ok", ...p });
 const at = (file: string, line: number) => ({ file, line, precision: "exact" as const });
@@ -89,4 +90,18 @@ test("AP: edit and resend takes the page's own write, compare says what changed,
   assert.equal(testStep(fixed)?.request?.name, "Create todo");
   assert.deepEqual(resendOrder(["a", "x", "b", "c"], (id) => ({ b: "a", c: "a" })[id]), ["a", "b", "c", "x"]);
   assert.deepEqual(resendOrder(["a", "b"], (id) => ({ a: "b", b: "a" })[id]), ["a", "b"], "a forged loop still shows every trip");
+});
+
+test("tripText: a trip as a few plain lines, with the break marked (#82)", () => {
+  const trip = buildTrip(payNow(1_700_000_000_000));
+  const lines = tripText(trip).split("\n");
+  assert.equal(lines[0], `Clicked "Pay now": BROKE (${trip.ms}ms)`);
+  assert.equal(lines[1], trip.returned);
+  assert.equal(lines.length - 2, trip.stations.length, "one numbered line per station");
+  assert.ok(lines.every((l, i) => i < 2 || /^\d+\. /.test(l)));
+  const broken = lines.findIndex((l) => l.includes("<- broke here"));
+  assert.ok(broken > 1, "exactly one station is marked as the break");
+  assert.equal(lines.filter((l) => l.includes("<- broke here")).length, 1);
+  assert.match(lines[broken]!, /^13\. createCharge\(\)/, "the station that got the bad value is marked");
+  assert.ok(lines[broken]!.includes("{ amount: 30, currency: 'usd' }"), "the value chip rides along");
 });

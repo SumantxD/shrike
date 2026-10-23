@@ -7,7 +7,7 @@ import { BeforeShot, AfterShot, TerminalCard, SHOT_W } from "./Shot.tsx";
 import { TripDecor } from "./TripDecor.tsx";
 import { DiveCard, editAndResend } from "./DiveCard.tsx";
 import { playTrip } from "./motion.ts";
-import { requestEvent, resendDiff, testStep } from "./logic.ts";
+import { requestEvent, resendDiff, testStep, tripText } from "./logic.ts";
 import { useActions } from "../stores/actions.ts";
 import { toast } from "../stores/ui.ts";
 import { call } from "../lib/api.ts";
@@ -97,8 +97,8 @@ async function saveTest(step: FlowStep): Promise<void> {
   if (flow) toast(`Saved "${flow.name}" as a test. Your flows replay it.`, "ok");
 }
 
-/** AP: Edit and resend on any trip that sent a request; Compare on a resend; Save as test once it answers well. */
-function TripActions({ view }: { view: ActionView }) {
+/** AP: Edit and resend on any trip that sent a request; Compare on a resend; Save as test once it answers well. Copy on every trip (#82). */
+function TripActions({ view, trip }: { view: ActionView; trip: Trip }) {
   const source = useActions((s) => (view.root.resendOf ? s.byId[view.root.resendOf] : undefined));
   const [open, setOpen] = useState(false);
   const can = useMemo(() => !!requestEvent(view), [view]);
@@ -108,11 +108,21 @@ function TripActions({ view }: { view: ActionView }) {
   }, [view]);
   const diff = useMemo(() => (open && source ? resendDiff(source, view) : []), [open, source, view]);
   const other = useActions((s) => otherSide(view, s)); // #62
-  if (!can && !other) return null;
   const live = !!view.root.live;
+  const copyTrip = async () => {
+    try {
+      await navigator.clipboard.writeText(tripText(trip));
+      toast("Copied this trip as text.", "ok");
+    } catch {
+      toast("Couldn't copy to the clipboard.", "error");
+    }
+  };
   return (
     <>
       <span className="th-acts">
+        <button type="button" className="th-act" onClick={() => void copyTrip()} title="Copy this trip as text">
+          Copy
+        </button>
         {other && (
           <button type="button" className="th-act" onClick={() => useThread.getState().setCompare(live ? { local: other, live: view.id } : { local: view.id, live: other })} title={`Show this trip and the last ${live ? "local" : "live"} one side by side, with the first difference`}>
             {live ? "Compare with local" : "Compare with live"}
@@ -184,7 +194,7 @@ export const TripView = memo(function TripView(p: Props) {
         <span className={`th-verdict ${trip.status}`}>{verdict}</span>
         <span className="th-lbl">{trip.ms}ms</span>
         {view.root.resendOf && <span className="th-lbl">edited resend</span>}
-        <TripActions view={view} />
+        <TripActions view={view} trip={trip} />
       </div>
       <svg width={width} height={g.height}>
         <defs>

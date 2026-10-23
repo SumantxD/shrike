@@ -1,5 +1,6 @@
 import type { ActionView, DebugEvent, FlowStep, HttpRequestSpec, Place } from "@shrike/schema";
-import type { LaneDef } from "../lib/thread-layout.ts";
+import type { LaneDef, Trip } from "../lib/thread-layout.ts";
+import { firstFailure } from "../lib/thread-layout.ts";
 import { toSteps } from "../lib/steps.ts";
 
 // Pure helpers for the Thread view: which code a dive card shows, its inline values, and feed windowing.
@@ -230,4 +231,19 @@ export function resendOrder(ids: string[], resendOf: (id: string) => string | un
   top.forEach(visit);
   ids.forEach(visit); // a forged loop still shows every trip
   return out;
+}
+
+/** One trip as a few plain lines for pasting into a chat, a PR comment or an agent (#82). Only values the Thread already draws. */
+export function tripText(trip: Trip): string {
+  const verdict = trip.status === "error" ? "BROKE" : trip.status === "slow" ? "SLOW" : "WORKED";
+  const broken = firstFailure(trip);
+  const lines = [`${trip.title}: ${verdict} (${trip.ms}ms)`, trip.returned];
+  trip.stations.forEach((s, i) => {
+    const parts = [`${i + 1}. ${s.label}`];
+    if (s.where) parts.push(s.where);
+    if (i === broken) parts.push("<- broke here");
+    if (s.chip) parts.push(s.chip);
+    lines.push(parts.join("  "));
+  });
+  return lines.join("\n");
 }
