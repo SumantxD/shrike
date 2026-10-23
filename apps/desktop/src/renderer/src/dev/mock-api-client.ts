@@ -103,6 +103,9 @@ export function apiClientMock(sendRequest: (r: HttpRequestSpec) => Promise<{ res
     async apiHistory() {
       return history.slice(0, 200);
     },
+    async apiClearHistory() {
+      history.length = 0;
+    },
     async apiImport(kind, text) {
       if (kind === "curl") {
         const url = /https?:\/\/[^\s'"]+/.exec(text ?? "")?.[0] ?? "";
