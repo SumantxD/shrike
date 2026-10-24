@@ -236,7 +236,7 @@ export function resendOrder(ids: string[], resendOf: (id: string) => string | un
 /** One trip as a few plain lines for pasting into a chat, a PR comment or an agent (#82). Only values the Thread already draws. */
 export function tripText(trip: Trip): string {
   const verdict = trip.status === "error" ? "BROKE" : trip.status === "slow" ? "SLOW" : "WORKED";
-  const broken = firstFailure(trip);
+  const broken = trip.status === "error" ? firstFailure(trip) : -1;
   const lines = [`${trip.title}: ${verdict} (${trip.ms}ms)`, trip.returned];
   trip.stations.forEach((s, i) => {
     const parts = [`${i + 1}. ${s.label}`];

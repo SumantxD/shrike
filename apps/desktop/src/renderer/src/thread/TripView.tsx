@@ -1,8 +1,9 @@
 import { memo, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import type { ActionView, FlowStep } from "@shrike/schema";
 import { cssColor as color } from "@shrike/design";
-import { subLine, type Trip, type TripGeometry, type PlacedStation } from "../lib/thread-layout.ts";
-import { firstFailure, otherSide, useThread } from "../stores/thread.ts";
+import { buildTrip, subLine, type Trip, type TripGeometry, type PlacedStation } from "../lib/thread-layout.ts";
+import { maskAction } from "@shrike/redact";
+import { firstFailure, otherSide, projectPlaces, useThread } from "../stores/thread.ts";
 import { BeforeShot, AfterShot, TerminalCard, SHOT_W } from "./Shot.tsx";
 import { TripDecor } from "./TripDecor.tsx";
 import { DiveCard, editAndResend } from "./DiveCard.tsx";
@@ -10,6 +11,7 @@ import { playTrip } from "./motion.ts";
 import { requestEvent, resendDiff, testStep, tripText } from "./logic.ts";
 import { useActions } from "../stores/actions.ts";
 import { toast } from "../stores/ui.ts";
+import { useProject } from "../stores/project.ts";
 import { call } from "../lib/api.ts";
 
 export interface Play {
@@ -111,7 +113,8 @@ function TripActions({ view, trip }: { view: ActionView; trip: Trip }) {
   const live = !!view.root.live;
   const copyTrip = async () => {
     try {
-      await navigator.clipboard.writeText(tripText(trip));
+      const shown = live ? buildTrip(maskAction(view, { keep: useProject.getState().project?.redact?.keep }), useThread.getState().expanded, projectPlaces()) : trip; // #52: a live trip leaves the screen masked
+      await navigator.clipboard.writeText(tripText(shown));
       toast("Copied this trip as text.", "ok");
     } catch {
       toast("Couldn't copy to the clipboard.", "error");

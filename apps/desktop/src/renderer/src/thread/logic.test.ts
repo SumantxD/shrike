@@ -4,7 +4,7 @@ import type { DebugEvent } from "@shrike/schema";
 import { blockEnd, codeRange, codeTarget, inlineChips, isGuess, offsets, plannedLanes, resendDiff, resendOrder, resendSpec, testStep, tripText, visibleRange } from "./logic.ts";
 import type { ActionView } from "@shrike/schema";
 import { buildTrip, lanesFor } from "../lib/thread-layout.ts";
-import { payNow } from "./fixtures.ts";
+import { ordersLoad, payNow } from "./fixtures.ts";
 
 const ev = (p: Partial<DebugEvent>): DebugEvent => ({ id: "e", traceId: "t", origin: "server", kind: "function", name: "f()", startMs: 0, status: "ok", ...p });
 const at = (file: string, line: number) => ({ file, line, precision: "exact" as const });
@@ -104,4 +104,5 @@ test("tripText: a trip as a few plain lines, with the break marked (#82)", () =>
   assert.equal(lines.filter((l) => l.includes("<- broke here")).length, 1);
   assert.match(lines[broken]!, /^13\. createCharge\(\)/, "the station that got the bad value is marked");
   assert.ok(lines[broken]!.includes("{ amount: 30, currency: 'usd' }"), "the value chip rides along");
+  assert.ok(!tripText(buildTrip(ordersLoad(1_700_000_000_000, true))).includes("<- broke here"), "a trip that worked marks no break");
 });
