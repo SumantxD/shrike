@@ -104,6 +104,8 @@ export function Thread() {
   // tripOrder() reads order and byId from the store
   const ids = useMemo(() => tripOrder(), [order, byId]);
   const list = useMemo(() => ids.map((id) => tripOf(byId[id]!, expanded, known)), [ids, byId, expanded, known]);
+  const broken = list.filter((t) => t.status === "error");
+  const latestBroken = broken[broken.length - 1];
   const fi = focus.actionId ? ids.indexOf(focus.actionId) : -1;
   const fTrip = list[fi];
 
@@ -213,7 +215,7 @@ export function Thread() {
     if (e.key === "ArrowDown" || e.key === "ArrowUp" || e.key === "Home" || e.key === "End") {
       e.preventDefault();
       e.stopPropagation();
-      const btns = Array.from(e.currentTarget.querySelectorAll<HTMLButtonElement>("button"));
+      const btns = Array.from(e.currentTarget.querySelectorAll<HTMLButtonElement>("button[data-trip]"));
       const idx = btns.indexOf(e.target as HTMLButtonElement);
       if (idx === -1) return;
       const next = e.key === "ArrowDown" ? btns[idx + 1] : e.key === "ArrowUp" ? btns[idx - 1] : e.key === "Home" ? btns[0] : btns[btns.length - 1];
@@ -315,6 +317,17 @@ export function Thread() {
       </div>
 
       <nav className="th-mini" aria-label="Trips" onKeyDown={onMiniKey}>
+        {latestBroken && (
+          <button
+            type="button"
+            className="th-broke"
+            title={`${broken.length} trip${broken.length === 1 ? "" : "s"} broke. Show the latest`}
+            aria-label={`${broken.length} trip${broken.length === 1 ? "" : "s"} broke. Show the latest`}
+            onClick={() => useThread.getState().setFocus(latestBroken.actionId, firstFailure(latestBroken))}
+          >
+            {broken.length} broke
+          </button>
+        )}
         {list.map((t, i) => (
           <button
             key={t.actionId}

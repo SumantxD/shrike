@@ -62,7 +62,7 @@ Because every trip uses the same lanes, the outline of the thread is the diagnos
 |---|---|---|
 | **Scroll** (through time) | Wheel/trackpad, ↑ ↓ to step station by station, PgUp/PgDn for trips | The feed moves; the focused station sits at the reading line (40% from the top). Stations snap into focus. |
 | **Dive** (into detail) | Enter, click a station, or pinch in | **T8**: the station's lane widens (others compress to slim light columns) and its code unfolds face-on: the function, the live line lit, values inline, the thread entering at the calling line and leaving at the next call. Previous and next stations peek at the top and bottom edges. Esc or pinch out surfaces. |
-| **Jump** | Click a minimap glyph, `!` next failure, `F` trip list | The feed glides there. |
+| **Jump** | Click a minimap glyph, the broke badge (T24), `!` next failure, `F` trip list | The feed glides there. |
 
 Zoom levels are semantic, not geometric: **Z0 Session** (every trip as a one-line glyph row with its verdict), **Z1 Trip** (lanes, stations, labels, chips), **Z2 Station** (dived, code readable). Esc steps out a level; Enter steps in.
 
