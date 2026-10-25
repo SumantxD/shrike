@@ -1,8 +1,8 @@
 import { app, dialog, shell, type BrowserWindow } from "electron";
 import { execFile } from "node:child_process";
 import { existsSync } from "node:fs";
-import { appendFile, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { appendFile, mkdir, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import { resolveInside } from "./files.ts";
 import { defaultShell, isWin } from "./platform.ts";
 
@@ -59,6 +59,23 @@ export async function saveClip(win: BrowserWindow | undefined, project: string, 
     if (r.canceled || !r.filePath) return null;
     path = r.filePath;
   }
+  await writeFile(path, bytes);
+  return path;
+}
+
+/** AP-res: a save dialog for a response body, text as it came back or binary as bytes. */
+export async function saveResponseBody(win: BrowserWindow | undefined, bytes: Uint8Array, name: string): Promise<string | null> {
+  const safe = name.replace(/[^\w.-]+/g, "-").replace(/^-+|-+$/g, "") || "response.txt";
+  let path: string;
+  // ponytail: test-only bypass of the save dialog, like saveClip.
+  if (process.env.SHRIKE_SAVE_DIR) path = join(process.env.SHRIKE_SAVE_DIR, safe);
+  else {
+    const opts = { title: "Save response body", defaultPath: join(app.getPath("downloads"), safe) };
+    const r = win ? await dialog.showSaveDialog(win, opts) : await dialog.showSaveDialog(opts);
+    if (r.canceled || !r.filePath) return null;
+    path = r.filePath;
+  }
+  await mkdir(dirname(path), { recursive: true });
   await writeFile(path, bytes);
   return path;
 }

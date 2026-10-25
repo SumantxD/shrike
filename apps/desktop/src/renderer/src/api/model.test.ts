@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { ApiRequest } from "@shrike/schema";
-import { blankReq, bulkParse, bulkText, cookiesOf, findMatches, fromApi, fromCapture, fromRoute, hiddenSecret, isKnown, makeScope, paramsFromUrl, pathOf, pathParams, row, scrubReq, segments, stepMatch, toApi, urlWithParams } from "./model.ts";
+import { blankReq, bulkParse, bulkText, cookiesOf, defaultResponseName, findMatches, fromApi, fromCapture, fromRoute, hiddenSecret, isKnown, makeScope, paramsFromUrl, pathOf, pathParams, row, scrubReq, segments, stepMatch, toApi, urlWithParams } from "./model.ts";
 
 test("{{vars}} split into highlightable segments; the scope says which are known", () => {
   assert.deepEqual(segments("{{baseUrl}}/todos/{{ id }}?x=1"), [{ text: "{{baseUrl}}", name: "baseUrl" }, { text: "/todos/" }, { text: "{{ id }}", name: "id" }, { text: "?x=1" }]);
@@ -94,4 +94,13 @@ test("find matches in text: case-insensitive, non-overlapping, wrap-around navig
   assert.equal(stepMatch(0, 3, "prev"), 2);
   assert.equal(stepMatch(2, 3, "prev"), 1);
   assert.equal(stepMatch(0, 0, "next"), 0);
+});
+
+test("saved response names: URL last part plus an extension from the content type", () => {
+  assert.equal(defaultResponseName("http://127.0.0.1:3000/todos", "application/json; charset=utf-8"), "todos.json");
+  assert.equal(defaultResponseName("http://127.0.0.1:3000/logo.png", "image/png"), "logo.png");
+  assert.equal(defaultResponseName("http://127.0.0.1:3000/bin", "application/octet-stream"), "bin");
+  assert.equal(defaultResponseName("http://127.0.0.1:3000/", undefined), "response.txt");
+  assert.equal(defaultResponseName("http://127.0.0.1:3000/", "application/json"), "response.json");
+  assert.equal(defaultResponseName("http://127.0.0.1:3000/todos?page=2", "text/plain"), "todos.txt");
 });

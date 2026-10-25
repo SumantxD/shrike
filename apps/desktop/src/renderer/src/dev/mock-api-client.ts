@@ -128,5 +128,8 @@ export function apiClientMock(sendRequest: (r: HttpRequestSpec) => Promise<{ res
     async apiSaveGuess() {
       return { routes: [], notes: [] };
     },
+    async apiSaveResponse() {
+      return null;
+    },
   };
 }

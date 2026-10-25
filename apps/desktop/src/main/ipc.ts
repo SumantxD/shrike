@@ -19,7 +19,7 @@ import {
 } from "./host.ts";
 import { paths, sampleCopy } from "./paths.ts";
 import { pickFolder } from "./project.ts";
-import { openInEditor, saveClip } from "./system.ts";
+import { openInEditor, saveClip, saveResponseBody } from "./system.ts";
 // power (O1 point mode, O6 issue card, O13 images)
 import { readFile as readBytes, stat as statPath } from "node:fs/promises";
 import type { PointPick, PrView } from "@shrike/schema";
@@ -1216,5 +1216,6 @@ export function registerIpc(win: () => BrowserWindow | undefined, appWin: AppWin
   handle("apiRoutes", z.union([none, z.tuple([z.boolean().optional()])]), (refresh) => apiSvc.routes(refresh));
   handle("apiGuessRoutes", z.tuple([routeRefsZ]), (routes) => apiSvc.guessRoutes(routes));
   handle("apiSaveGuess", z.tuple([routeGuessZ]), (g) => apiSvc.saveGuess(g));
+  handle("apiSaveResponse", z.tuple([z.instanceof(Uint8Array).refine((b) => b.byteLength <= 64 * 1024 * 1024, "body is too big"), z.string().max(120)]), (bytes, name) => saveResponseBody(win(), bytes, name));
   // ---- end api ----
 }

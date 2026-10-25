@@ -3,14 +3,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { createServer } from "node:http";
 import { createServer as createHttps } from "node:https";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Page } from "playwright";
-import { fixtureCopy, key, launch, openFolder, shot, sleep } from "./helpers.ts";
+import { fixtureCopy, key, launch, openFolder, shot, sleep, waitFor } from "./helpers.ts";
 
 const LINE = `${"GET /api/todos 200 ok, user 7 saved a todo called buy milk ".repeat(4)}\n`;
 
@@ -39,6 +39,7 @@ test("api client: unreachable, untrusted TLS, binary and a huge answer end in a 
   const huge = Buffer.from(LINE.repeat(Math.ceil((12 * 1024 * 1024) / LINE.length)));
   const srv = createServer((q, r) => {
     if (q.url === "/bin") return void r.writeHead(200, { "content-type": "application/octet-stream" }).end(Buffer.from([0, 1, 2, 3, 255]));
+    if (q.url === "/text") return void r.writeHead(200, { "content-type": "text/plain" }).end("hello");
     r.writeHead(200, { "content-type": "text/plain" }).end(huge);
   }).listen(0, "127.0.0.1");
   await new Promise((r) => srv.once("listening", r));
@@ -48,7 +49,8 @@ test("api client: unreachable, untrusted TLS, binary and a huge answer end in a 
   const tls = createHttps({ key: readFileSync(join(dir, "k.pem")), cert: readFileSync(join(dir, "c.pem")) }, (_q, r) => r.end("secure")).listen(0, "127.0.0.1");
   await new Promise((r) => tls.once("listening", r));
   const proj = fixtureCopy("todo-app");
-  const { app, win, cleanup } = await launch({ SHRIKE_OPEN_FOLDER: proj });
+  const saveDir = mkdtempSync(join(tmpdir(), "shrike-e2e-save-"));
+  const { app, win, cleanup } = await launch({ SHRIKE_OPEN_FOLDER: proj, SHRIKE_SAVE_DIR: saveDir });
   try {
     await win.emulateMedia({ reducedMotion: "reduce" });
     await openFolder(win);
@@ -73,6 +75,23 @@ test("api client: unreachable, untrusted TLS, binary and a huge answer end in a 
     await send(`http://127.0.0.1:${port}/bin`);
     await sheet.getByText(/A binary answer \(application\/octet-stream, 5 B\)/).waitFor({ timeout: 10_000 });
     await shot(app, "api-net-03-binary");
+
+    // Save writes the binary answer to a file, byte for byte, and the text answer as it came back.
+    await sheet.getByRole("button", { name: "Save the response body" }).click();
+    const binFile = await waitFor("the saved binary file", async () => {
+      const files = readdirSync(saveDir);
+      return files.length > 0 ? join(saveDir, files[0]!) : false;
+    }, 5000);
+    assert.deepEqual([...readFileSync(binFile)], [0, 1, 2, 3, 255]);
+    const before = new Set(readdirSync(saveDir));
+    await send(`http://127.0.0.1:${port}/text`);
+    await sheet.getByText("hello").first().waitFor({ timeout: 10_000 });
+    await sheet.getByRole("button", { name: "Save the response body" }).click();
+    const textFile = await waitFor("the saved text file", async () => {
+      const fresh = readdirSync(saveDir).filter((f) => !before.has(f));
+      return fresh.length > 0 ? join(saveDir, fresh[0]!) : false;
+    }, 5000);
+    assert.equal(readFileSync(textFile, "utf8"), "hello");
 
     const prettyGap = await longestFrameGap(win, async () => {
       await send(`http://127.0.0.1:${port}/huge`);
@@ -119,6 +138,7 @@ test("api client: unreachable, untrusted TLS, binary and a huge answer end in a 
     srv.close();
     tls.close();
     rmSync(dir, { recursive: true, force: true });
+    rmSync(saveDir, { recursive: true, force: true });
     rmSync(join(proj, ".."), { recursive: true, force: true });
   }
 });

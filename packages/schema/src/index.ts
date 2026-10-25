@@ -1420,6 +1420,7 @@ export interface ShrikeApi {
   apiRoutes(refresh?: boolean): Promise<RoutesView>; // AP20: spec (repo file or the app's own well-known URL) merged with scanned routes and accepted guesses
   apiGuessRoutes(routes: { method: string; path: string }[]): Promise<RouteGuess[]>; // AP22: a read-only agent run; nothing is saved
   apiSaveGuess(guess: RouteGuess): Promise<RoutesView>; // AP22: the user accepted it: .shrike/api/guessed-routes.json and a request in the project's collection
+  apiSaveResponse(bytes: Uint8Array, name: string): Promise<string | null>; // AP-res: save dialog for a response body; null when the user cancels
   // G: git and GitHub
   gitState(): Promise<GitState>;
   shipFix(opts: { actionId?: string; title?: string; message?: string; files?: string[] }): Promise<PullRequest>; // G1: needs approval for push; message: the Commit box draft

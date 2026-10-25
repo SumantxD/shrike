@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ChevronDown, ChevronRight, ChevronUp, Copy } from "lucide-react";
+import { ChevronDown, ChevronRight, ChevronUp, Copy, Save } from "lucide-react";
 import type { ActionView, ApiSendResult } from "@shrike/schema";
 import { CodeBlock, cx, Kbd, Pairs, Spinner } from "../components/ui.tsx";
 import { ShrikeEmblem } from "../brand/index.ts";
@@ -7,7 +7,8 @@ import { allEvents, formatBytes, formatDuration, prettyBody, statusWords } from 
 import { useActions } from "../stores/actions.ts";
 import { toast, useUi } from "../stores/ui.ts";
 import { viewTrip } from "../hud/commands.ts";
-import { cookiesOf, findMatches, pathOf, stepMatch, tryJson } from "./model.ts";
+import { cookiesOf, defaultResponseName, findMatches, pathOf, stepMatch, tryJson } from "./model.ts";
+import { call } from "../lib/api.ts";
 import { useApi } from "./store.ts";
 
 // AP-res, AP-trip, AP-empty: what came back, and what the app did to answer.
@@ -251,6 +252,16 @@ export function ResponsePane({ tabId }: { tabId: string }) {
     );
   if (!res) return null;
   const passed = result.assertions.filter((a) => a.ok).length;
+
+  // AP-res: Save writes the body to a file, text as it came back, binary as bytes. Cancelling shows no toast; a cut body says so in the toast.
+  const save = async () => {
+    const bytes = binary ? Uint8Array.from(atob(res.body), (c) => c.charCodeAt(0)) : new TextEncoder().encode(res.body);
+    const path = await call((a) => a.apiSaveResponse(bytes, defaultResponseName(res.url, res.contentType)), "Couldn't save the body");
+    if (path) {
+      const file = path.split(/[\\/]/).pop() ?? "the body";
+      toast(`Saved ${file}${res.truncated ? " (only what Shrike kept)" : ""}`, "ok");
+    }
+  };
   const tabs: { id: ResTab; label: string; n?: number }[] = [
     { id: "pretty", label: "Pretty" },
     { id: "raw", label: "Raw" },
@@ -346,6 +357,9 @@ export function ResponsePane({ tabId }: { tabId: string }) {
         )}
         <button type="button" className="ap-icon" aria-label="Copy the response body" title="Copy the body" disabled={binary} onClick={() => copy(res.body, "the body")}>
           <Copy size={12} />
+        </button>
+        <button type="button" className="ap-icon" aria-label="Save the response body" title="Save the body" onClick={save}>
+          <Save size={12} />
         </button>
       </div>
       <div role="tabpanel" className="ap-res-body">

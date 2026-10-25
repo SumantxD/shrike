@@ -398,3 +398,24 @@ export function toApi(r: Req): ApiRequest {
     ...(r.seq === undefined ? {} : { seq: r.seq }),
   };
 }
+
+const BODY_EXTS: Record<string, string> = { json: "json", html: "html", xml: "xml", plain: "txt", csv: "csv", javascript: "js", css: "css", png: "png", jpeg: "jpg", gif: "gif", webp: "webp", "svg+xml": "svg", pdf: "pdf", zip: "zip", "octet-stream": "" };
+
+/** AP-res: the default file name for a saved response body: the URL's last path part plus an extension from the content type, falling back to response.txt. */
+export function defaultResponseName(url: string, contentType: string | undefined): string {
+  let base = "";
+  try {
+    const parts = new URL(url).pathname.split("/").filter(Boolean);
+    base = parts[parts.length - 1] ?? "";
+  } catch {
+    base = "";
+  }
+  base = base.replace(/[^\w.-]+/g, "-").replace(/^-+|-+$/g, "");
+  const typePart = (contentType ?? "").split(";")[0] ?? "";
+  const sub = typePart.split("/")[1]?.trim() ?? "";
+  const ext = BODY_EXTS[sub] ?? (/^[a-z0-9]+$/.test(sub) && sub.length <= 10 ? sub : "");
+  if (!base && !ext) return "response.txt";
+  if (!base) return `response.${ext}`;
+  if (ext && !base.endsWith(`.${ext}`)) return `${base}.${ext}`;
+  return base;
+}
