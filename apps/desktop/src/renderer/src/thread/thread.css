@@ -177,6 +177,8 @@
 .th-mini button { all: unset; flex: none; cursor: pointer; display: block; border-radius: 6px; padding: 3px; border: 1px solid transparent; }
 .th-mini button.on { border-color: var(--glass-edge); background: var(--glass); }
 .th-mini button:focus-visible { outline: 2px solid var(--cyan); }
+/* T24: broke badge, first in the minimap column. Sticky so it stays on top while the glyphs scroll under it; narrow enough for the 34px column, so "2 broke" wraps to two lines. */
+.th-mini button.th-broke { position: sticky; top: 0; z-index: 1; font: 500 9px var(--mono); text-align: center; color: var(--fail); background: var(--abyss); border-color: var(--mix-fail); padding: 2px 1px; }
 
 @media (prefers-reduced-motion: reduce) {
   .th-root *, .th-root *::before, .th-root *::after { animation: none !important; transition: none !important; }

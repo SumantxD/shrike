@@ -160,6 +160,16 @@ test("killer demo: click Add Todo, the trip snaps in DATABASE and dives into the
     await sleep(700);
     await shot(app, "09-next-failure");
 
+    // T24: the broke badge counts the broken trips and jumps to the latest one.
+    const minimap = win.getByRole("navigation", { name: "Trips" });
+    const badge = minimap.getByRole("button", { name: /trips? broke\. Show the latest/ });
+    await waitFor("the broke badge to read 1 broke", async () => (await badge.innerText()).replace(/\s+/g, " ").trim() === "1 broke", 5000);
+    await minimap.getByRole("button", { name: /^Opened \// }).click();
+    await waitFor("the page-load trip in focus again", async () => (await focusedTrip(win)) === opened.id, 5000);
+    await badge.click();
+    await waitFor("the badge to jump back to the failure", async () => (await focusedTrip(win)) === view.id, 5000);
+    await waitCaption(win, /insertTodo\(\)/);
+
     // Sheets, one at a time, with real data.
     await key(win, "g");
     await win.getByRole("region", { name: "Logs" }).getByText(/creating todo/).first().waitFor();
