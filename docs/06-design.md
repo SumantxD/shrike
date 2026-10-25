@@ -100,7 +100,7 @@ Long trips stay readable: plumbing (framework code, repeated helpers) collapses 
 
 ## Keyboard
 
-Scroll/↑/↓ step · PgUp/PgDn trip · Enter dive · Esc surface · Space replay the trip (M1) · T time view · ! next failure · F trips (↑ ↓ move between them, Home and End jump to the first and last, Esc goes back to the Thread) · P app dock · O app in its own window (O again docks it back) · G N A \` D sheets · E editor · R record · V Thread or Files view · ⌘K focus the composer. Never fire while typing. In the Files view ← → also step, Home and End jump to the first and last step, Space plays the steps and pauses, and Esc steps out from the file cards to the tree, then the whole route.
+Scroll/↑/↓ step · PgUp/PgDn trip · Enter dive · Esc surface · Space replay the trip (M1) · T time view · ! next failure · F trips (↑ ↓ move between them, Home and End jump to the first and last, Esc goes back to the Thread) · P app dock · O app in its own window (O again docks it back) · G N A \` D sheets · E editor · R record · V Thread or Files view · ⌘K focus the composer · ? lists every key in a card (? again or Esc closes it). Never fire while typing. In the Files view ← → also step, Home and End jump to the first and last step, Space plays the steps and pauses, and Esc steps out from the file cards to the tree, then the whole route.
 
 ## Files view (FV)
 

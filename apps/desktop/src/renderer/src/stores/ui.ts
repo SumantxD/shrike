@@ -28,6 +28,7 @@ interface UiState {
   sheet: Sheet; // one summoned sheet at a time
   appVisible: boolean; // docked live app (P)
   recMenu: boolean;
+  help: boolean; // the ? shortcuts card
   newTrip: string | null; // action id behind the quiet "New trip" toast
   agentCaption: string | null; // overrides the focused station's caption while the agent narrates
   keysUsed: boolean; // the key hints have done their job once the Thread keys are used
@@ -66,6 +67,7 @@ export const useUi = create<UiState>((set) => ({
   sheet: null,
   appVisible: true,
   recMenu: false,
+  help: false,
   newTrip: null,
   agentCaption: null,
   keysUsed: false,

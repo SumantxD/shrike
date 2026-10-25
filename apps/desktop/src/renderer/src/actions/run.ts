@@ -180,6 +180,7 @@ const RUN: Record<string, Run> = {
     return { echo: `Opening ${path.split("/").pop()}`, undo: () => useUi.setState({ file: before }) };
   },
   quick_open: () => cmd("quick-open", "Find a file"),
+  "keys.show": () => cmd("help", "Keyboard shortcuts"),
   "route.open": (s) => (openApi(String(s.slots.route).split(" ").pop()), { echo: "Opening the route" }),
   record: () => cmd("record", "Recording options"),
   "app.window": () => cmd("pop-out", "Moving your app"),

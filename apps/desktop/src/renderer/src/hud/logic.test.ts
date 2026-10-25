@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import type { ActionView, DebugEvent, TimelineNode } from "@shrike/schema";
 import { buildTrip } from "../lib/thread-layout.ts";
 import {
-  agentSection, failingLocation, fileChip, fuzzyScore, goalWithContext, issueMarkdown, issueTitle, linearVariant, logChip, matchStation, parseInline, parseMarkdown,
-  chosenFinding, parseSlash, pickChip, pointQuestion, previousSameLabel, probeCap, rankFindings, sameAction, rankQuick, resolveKey, sentence, sharpen, shortTitle, slashMatches, stationChip,
+  agentSection, failingLocation, fileChip, fuzzyScore, goalWithContext, issueMarkdown, issueTitle, keyLabel, linearVariant, logChip, matchStation, parseInline, parseMarkdown,
+  chosenFinding, parseSlash, pickChip, PLAIN, pointQuestion, previousSameLabel, probeCap, rankFindings, sameAction, rankQuick, resolveKey, sentence, sharpen, shortTitle, SHORTCUTS, slashMatches, stationChip,
 } from "./logic.ts";
 
 let n = 0;
@@ -72,6 +72,19 @@ test("keys: never fire while typing, Enter views a new trip when offered", () =>
   assert.equal(k("F"), "trip-list");
   assert.equal(k("f", { typing: true }), null);
   assert.equal(resolveKey({ key: "Enter", meta: false, ctrl: false, alt: false, typing: false }, { newTrip: true, approval: false }), "view-new-trip");
+});
+
+test("keys: ? opens the shortcuts card, never while typing, and the card lists every key that works", () => {
+  const k = (key: string, o: Partial<{ meta: boolean; typing: boolean }> = {}) => resolveKey({ key, meta: false, ctrl: false, alt: false, typing: false, ...o }, { newTrip: false, approval: true });
+  assert.equal(k("?"), "help");
+  assert.equal(k("?", { typing: true }), null);
+  const listed = SHORTCUTS.flatMap((g) => g.rows.flatMap((r) => r.keys));
+  for (const key of [...Object.keys(PLAIN), "Enter", "Escape", "⌘K", "⌘P", "⌘↵"]) assert.ok(listed.includes(key), `${key} is on the card`);
+  for (const key of listed) {
+    const chord = key.startsWith("⌘");
+    assert.notEqual(k(chord ? key.slice(1).replace("↵", "Enter") : key, { meta: chord }), null, `${key} on the card does something`);
+  }
+  assert.deepEqual(["ArrowUp", " ", "Escape", "t", "!", "⌘K"].map(keyLabel), ["↑", "Space", "Esc", "T", "!", "⌘K"]);
 });
 
 test("captions: first sentence by default, whole summary when asked, no markdown", () => {

@@ -8,7 +8,7 @@ import { currentStage } from "../../../main/sdlc.ts";
 export type Command =
   | "step-down" | "step-up" | "trip-down" | "trip-up" | "dive" | "escape" | "replay" | "time" | "next-failure"
   | "app" | "logs" | "network" | "api" | "terminal" | "details" | "editor" | "record" | "ask" | "apply" | "view-new-trip"
-  | "point" | "quick-open" | "skills" | "ship" | "flows" | "pop-out" | "view" | "trip-list";
+  | "point" | "quick-open" | "skills" | "ship" | "flows" | "pop-out" | "view" | "trip-list" | "help";
 
 export interface KeyInput {
   key: string;
@@ -18,12 +18,55 @@ export interface KeyInput {
   typing: boolean; // focus is in an input, textarea, select or contenteditable
 }
 
-const PLAIN: Record<string, Command> = {
+export const PLAIN: Record<string, Command> = {
   ArrowDown: "step-down", ArrowUp: "step-up", PageDown: "trip-down", PageUp: "trip-up", " ": "replay",
   t: "time", "!": "next-failure", p: "app", g: "logs", n: "network", a: "api", "`": "terminal", d: "details",
   e: "editor", r: "record", "/": "ask", x: "point", k: "skills", s: "ship", w: "flows", o: "pop-out", v: "view",
-  f: "trip-list",
+  f: "trip-list", "?": "help",
 };
+
+/** The ? card (H17). Keys are what resolveKey reads, so logic.test.ts can check every PLAIN key is listed here. */
+export const SHORTCUTS: { group: string; rows: { keys: string[]; what: string }[] }[] = [
+  { group: "Move", rows: [
+    { keys: ["ArrowUp", "ArrowDown"], what: "Step through the trip" },
+    { keys: ["PageUp", "PageDown"], what: "Previous or next trip" },
+    { keys: ["Enter"], what: "Dive into the step" },
+    { keys: ["Escape"], what: "Surface, or close what's open" },
+    { keys: ["!"], what: "Next failure" },
+    { keys: ["f"], what: "Go to the trip list" },
+  ] },
+  { group: "Look", rows: [
+    { keys: [" "], what: "Replay the trip" },
+    { keys: ["t"], what: "Time view" },
+    { keys: ["v"], what: "Thread or Files view" },
+    { keys: ["e"], what: "Open the step's file" },
+    { keys: ["p"], what: "Show or hide your app" },
+    { keys: ["o"], what: "Your app in its own window" },
+  ] },
+  { group: "Panels", rows: [
+    { keys: ["g"], what: "Logs" },
+    { keys: ["n"], what: "Network" },
+    { keys: ["a"], what: "API explorer" },
+    { keys: ["`"], what: "Terminal" },
+    { keys: ["d"], what: "Details of the step" },
+    { keys: ["k"], what: "Skills" },
+    { keys: ["s"], what: "Ship" },
+    { keys: ["w"], what: "Flows" },
+    { keys: ["r"], what: "Record a clip" },
+    { keys: ["⌘P"], what: "Find a file, trip, route or log line" },
+    { keys: ["?"], what: "Show or hide these keys" },
+  ] },
+  { group: "Agent", rows: [
+    { keys: ["⌘K", "/"], what: "Ask your agent" },
+    { keys: ["x"], what: "Point at something in your app" },
+    { keys: ["⌘↵"], what: "Allow what the agent asks for" },
+  ] },
+];
+
+const KEY_LABEL: Record<string, string> = { ArrowUp: "↑", ArrowDown: "↓", PageUp: "PgUp", PageDown: "PgDn", " ": "Space", Escape: "Esc" };
+
+/** How a SHORTCUTS key reads on the card: "t" is T, " " is Space. Chords keep their ⌘ for keys() to localise. */
+export const keyLabel = (k: string): string => KEY_LABEL[k] ?? (k.length === 1 ? k.toUpperCase() : k);
 
 /** docs/06-design.md "Keyboard". Only Esc, ⌘K, ⌘P and ⌘↵ work while typing. */
 export function resolveKey(k: KeyInput, ctx: { newTrip: boolean; approval: boolean; files?: boolean }): Command | null {

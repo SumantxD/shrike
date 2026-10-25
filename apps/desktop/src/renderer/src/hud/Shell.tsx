@@ -10,6 +10,7 @@ import { Sheet } from "./Sheets.tsx";
 import { FileView } from "./FileView.tsx";
 import { QuickOpen } from "./QuickOpen.tsx";
 import { Setup } from "./Setup.tsx";
+import { Shortcuts } from "./Shortcuts.tsx";
 import { IssueCard } from "../components/IssueCard.tsx";
 import { api } from "../lib/api.ts";
 import { useRun } from "../stores/run.ts";
@@ -129,6 +130,7 @@ export function Shell() {
               <OptionsLayer />
               <FileView />
               <IssueCard />
+              <Shortcuts />
               <Setup />
               <QuickOpen />
               <WorkspaceReady />

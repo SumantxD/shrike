@@ -1,5 +1,5 @@
 // Power features on the sample todo app, in the BUILT app: telemetry strip (A17), point mode (O1), drag to Ask (O8),
-// slash palette (A10), quick open (O5) and the issue card (O6). Run `pnpm build` first. Uses ports 5173/3001.
+// slash palette (A10), quick open (O5), the issue card (O6) and the shortcuts card (H17). Run `pnpm build` first. Uses ports 5173/3001.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readdirSync } from "node:fs";
@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { actions, addTodoAction, launch, listening, openSampleAndRun, shot, sleep, typeTodo, waitFor } from "./helpers.ts";
 
 
-test("power: telemetry, point mode, drag to Ask, slash palette, quick open, issue copy", { timeout: 300_000 }, async () => {
+test("power: telemetry, point mode, drag to Ask, slash palette, quick open, issue copy, shortcuts card", { timeout: 300_000 }, async () => {
   assert.equal(listening([5173, 3001]), "", "todo ports must be free");
   const { app, win, userData, cleanup } = await launch();
   const ISSUES = join(userData, "sample/todo-app/.shrike/issues"); // the sample opens as a copy in userData
@@ -111,6 +111,33 @@ test("power: telemetry, point mode, drag to Ask, slash palette, quick open, issu
     assert.ok(readdirSync(ISSUES).some((f) => f.endsWith(".md")), "the issue is saved under .shrike/issues");
     await sleep(300);
     await shot(app, "power-07-issue-card");
+    await win.keyboard.press("Escape");
+
+    // H17: ? lists every key, Esc or ? closes it, focus goes back where it was, and it never opens while typing.
+    const share = win.getByRole("banner").getByRole("button", { name: "Write this trip up as an issue" });
+    await share.focus();
+    await win.keyboard.press("?");
+    const keys = win.getByRole("dialog", { name: "Keyboard shortcuts" });
+    await keys.waitFor();
+    for (const g of ["Move", "Look", "Panels", "Agent"]) await keys.getByRole("heading", { name: g }).waitFor();
+    await keys.getByText("Next failure").waitFor();
+    assert.ok(await keys.evaluate((el) => el.contains(document.activeElement)), "focus moves into the card");
+    await sleep(300);
+    await shot(app, "power-08-shortcuts");
+    await win.keyboard.press("Escape");
+    await keys.waitFor({ state: "detached" });
+    assert.ok(await share.evaluate((el) => el === document.activeElement), "focus goes back on close");
+    await win.keyboard.press("?");
+    await keys.waitFor();
+    await win.keyboard.press("?");
+    await keys.waitFor({ state: "detached" });
+    await win.keyboard.press("Meta+k");
+    await waitFor("the composer to take focus", () => win.evaluate(() => /^(INPUT|TEXTAREA)$/.test(document.activeElement?.tagName ?? "")), 5000);
+    await win.keyboard.type("?");
+    await sleep(300);
+    assert.equal(await keys.count(), 0, "? types into the composer instead");
+    assert.match(await win.evaluate(() => (document.activeElement as HTMLTextAreaElement).value), /\?$/);
+    await win.keyboard.press("Backspace");
     await win.keyboard.press("Escape");
 
     await win.getByRole("banner").getByRole("button", { name: "Stop", exact: true }).click();
