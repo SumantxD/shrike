@@ -101,6 +101,33 @@ test("keeps request and response bodies, and decodes base64 content (Firefox/Saf
   assert.equal(ev.http!.resBody, '{"ok":true}');
 });
 
+test("base64 binary bodies become '[mime, N bytes]' placeholders, typed and untyped text ones still decode (#119)", () => {
+  const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
+  const out = parseHar(
+    har([
+      entry({
+        request: { method: "GET", url: "http://localhost:3001/logo.png", headers: [] },
+        response: { status: 200, headers: [], content: { mimeType: "image/png", encoding: "base64", text: png.toString("base64") } },
+      }),
+      entry({
+        startedDateTime: "2026-10-26T10:00:00.100Z",
+        request: { method: "POST", url: "http://localhost:3001/api/todos", headers: [], postData: { mimeType: "application/json", encoding: "base64", text: Buffer.from('{"title":"x"}').toString("base64") } },
+        response: { status: 200, headers: [], content: { encoding: "base64", text: Buffer.from('{"ok":true}').toString("base64") } },
+      }),
+      entry({
+        startedDateTime: "2026-10-26T10:00:00.200Z",
+        request: { method: "GET", url: "http://localhost:3001/blob", headers: [] },
+        response: { status: 200, headers: [], content: { encoding: "base64", text: Buffer.from([0x00, 0x01, 0x02, 0x03]).toString("base64") } },
+      }),
+    ]),
+  );
+  const [image, typed, untypedBinary] = out.trips[0]!.slice(1);
+  assert.equal(image!.http!.resBody, `[image/png, ${png.length} bytes]`);
+  assert.equal(typed!.http!.reqBody, '{"title":"x"}'); // a typed base64 text body still decodes
+  assert.equal(typed!.http!.resBody, '{"ok":true}'); // an untyped text body goes through the byte sniff
+  assert.equal(untypedBinary!.http!.resBody, "[binary, 4 bytes]"); // the sniff catches a zero byte
+});
+
 test("drops dev-server calls and Firestore back channels, counts unusable entries as skipped", () => {
   const out = parseHar(
     har([
