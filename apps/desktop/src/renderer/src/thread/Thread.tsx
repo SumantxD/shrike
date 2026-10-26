@@ -89,11 +89,9 @@ export function Thread() {
 
   const feed = useRef<HTMLDivElement>(null);
   const miniOn = useRef<HTMLButtonElement>(null);
-  // #66: a HAR file picked here becomes trips through the importHar IPC handler.
-  const harInput = useRef<HTMLInputElement>(null);
-  const importHarFile = async (f: File | undefined) => {
-    if (!f) return;
-    const res = await call(async (a) => a.importHar(await f.text()), "Couldn't import that HAR file");
+  // #66: main picks the HAR through a dialog and turns it into trips.
+  const importHarFile = async () => {
+    const res = await call((a) => a.importHar(), "Couldn't import that HAR file");
     if (!res) return;
     const actions = await call((a) => a.getActions(), "Couldn't load recordings");
     if (actions) useActions.getState().upsert(actions);
@@ -254,13 +252,9 @@ export function Thread() {
         <span className="th-barhint" aria-hidden>
           <kbd>V</kbd> switches
         </span>
-        <button type="button" className="th-harbtn" title="Import a HAR file as trips (Chrome DevTools → Network → Export HAR)" onClick={() => harInput.current?.click()}>
+        <button type="button" className="th-harbtn" title="Import a HAR file as trips (Chrome DevTools → Network → Export HAR)" onClick={() => void importHarFile()}>
           Import HAR…
         </button>
-        <input ref={harInput} type="file" accept=".har,application/json" hidden onChange={(e) => {
-          void importHarFile(e.target.files?.[0]);
-          e.target.value = "";
-        }} />
       </div>
       {filesTrip && byId[filesTrip.actionId] && <FilesView view={byId[filesTrip.actionId]!} trip={filesTrip} />}
       {viewMode === "files" && !filesTrip && (

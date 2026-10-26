@@ -88,7 +88,7 @@ function displayName(url: URL): string {
 }
 
 /** One HAR entry into its events, or null when the entry is unusable. An empty array means the entry was
- *  deliberately dropped (a dev server's own call, a Firestore back channel) — not an error. */
+ *  deliberately dropped (a dev server's own call, a Firestore back channel): not an error. */
 function entryEvents(entry: HarEntry, traceId: string, rootId: string): DebugEvent[] | null {
   let url: URL;
   try {
@@ -131,7 +131,7 @@ function entryEvents(entry: HarEntry, traceId: string, rootId: string): DebugEve
 
 /**
  * Parse HAR text into trips. Throws a plain Error with a message fit for the UI on any whole-file problem
- * (empty, over the cap, not JSON, not a HAR) — never a crash, never a stack trace to the user.
+ * (empty, over the cap, not JSON, not a HAR): never a crash, never a stack trace to the user.
  */
 export function parseHar(text: string): HarImport {
   if (!text.trim()) throw new Error("That file is empty.");
@@ -199,12 +199,13 @@ export function parseHar(text: string): HarImport {
     const perTrip = MAX_TRIP_EVENTS - 1;
     for (let i = 0; i < events.length; i += perTrip) {
       const chunkRootId = i === 0 ? rootId : randomHex(8);
-      const chunk = events.slice(i, i + perTrip).map((e) => (e.parentId === rootId ? { ...e, parentId: chunkRootId } : e));
+      const chunkTraceId = i === 0 ? traceId : randomHex(16); // the store caps per traceId, so each chunk needs its own
+      const chunk = events.slice(i, i + perTrip).map((e) => ({ ...e, traceId: chunkTraceId, parentId: e.parentId === rootId ? chunkRootId : e.parentId }));
       const first = chunk[0]!;
       const lastEnd = Math.max(...chunk.map((e) => e.startMs + (e.durationMs ?? 0)));
       const root: DebugEvent = {
         id: chunkRootId,
-        traceId,
+        traceId: chunkTraceId,
         origin: "browser",
         kind: "user_action",
         name: IMPORTED_LABEL,

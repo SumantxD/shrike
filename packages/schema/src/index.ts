@@ -1345,7 +1345,7 @@ export interface ShrikeApi {
   readFile(path: string): Promise<string>;
   writeFile(path: string, content: string): Promise<void>;
   getActions(): Promise<ActionView[]>;
-  importHar(text: string): Promise<{ trips: number; events: number; entries: number; skipped: number; truncated: number; webSockets: number }>; // #66: HAR text into trips, through the store
+  importHar(): Promise<{ trips: number; events: number; entries: number; skipped: number; truncated: number; webSockets: number } | null>; // #66: a HAR picked through the dialog into trips, through the store; null when cancelled
   sendRequest(req: HttpRequestSpec): Promise<{ response: HttpResponseSpec; actionId: string }>;
   detectBrains(): Promise<BrainInfo[]>;
   startAgent(goal: string, brain: BrainId): Promise<AgentRunInfo>;

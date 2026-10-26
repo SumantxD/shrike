@@ -171,3 +171,13 @@ test("a Supabase call recognised by its apikey header, not just its hostname, al
   assert.equal(ev.kind, "db_query");
   assert.equal(ev.place!.id, "data:supabase:db.example.com");
 });
+
+test("a burst past the per-trip cap becomes several whole trips in the store, nothing dropped", () => {
+  const many = Array.from({ length: 12_000 }, (_, i) => entry({ startedDateTime: new Date(Date.UTC(2026, 9, 26, 10) + (i % 500)).toISOString(), request: { method: "GET", url: `http://localhost:3001/api/todos/${i}`, headers: [] } }));
+  const store = new Store({ projectRoot: () => "/proj", onUpdate: () => {} });
+  for (const m of harMessages(har(many))) store.handle(m);
+  const actions = store.listActions();
+  assert.equal(actions.length, 3);
+  assert.ok(actions.every((a) => a.label === IMPORTED_LABEL));
+  assert.equal(actions.reduce((n, a) => n + flat(a.tree).length, 0), 12_000);
+});
