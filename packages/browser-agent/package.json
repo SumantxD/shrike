@@ -10,6 +10,9 @@
   },
   "private": true,
   "type": "module",
+  "dependencies": {
+    "@shrike/schema": "workspace:*"
+  },
   "scripts": {
     "build": "esbuild src/index.ts --bundle --format=iife --target=chrome120 --outfile=dist/browser-agent.js"
   },

@@ -30,6 +30,9 @@
 .th-seg button:focus-visible { outline: 2px solid var(--cyan); outline-offset: -2px; }
 .th-barhint { font: 500 10px var(--mono); letter-spacing: .1em; color: var(--ink-faint); white-space: nowrap; }
 .th-barhint kbd { font: inherit; color: var(--ink-dim); border: 1px solid var(--hair); border-radius: 4px; padding: 0 4px; margin-right: 4px; }
+.th-harbtn { all: unset; cursor: pointer; font: 500 10.5px var(--mono); letter-spacing: .16em; padding: 5px 12px; color: var(--ink-dim); border: 1px solid var(--hair); border-radius: 8px; background: var(--glass); margin-left: auto; transition: color .2s; }
+.th-harbtn:hover { color: var(--ink); }
+.th-harbtn:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
 .th-stage, .fm { grid-column: 1; grid-row: 2; }
 .th-mini { grid-column: 2; grid-row: 2; }
 .th-stage[hidden] { display: none; }

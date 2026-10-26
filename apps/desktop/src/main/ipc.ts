@@ -4,6 +4,7 @@ import { z } from "zod";
 import type { ShrikeApi, ShrikeEvents } from "@shrike/schema";
 import { detectBrains, startAgent, stopAgent } from "./agent.ts";
 import * as files from "./files.ts";
+import { parseHar } from "./har.ts"; // #66: HAR import
 import {
   answerApproval,
   appView,
@@ -193,6 +194,20 @@ export function registerIpc(win: () => BrowserWindow | undefined, appWin: AppWin
   handle("readFile", z.tuple([str]), (path) => files.readFile(requireProject().root, path));
   handle("writeFile", z.tuple([str, z.string().max(20 * 1024 * 1024)]), (path, content) => files.writeFile(requireProject().root, path, content));
   handle("getActions", none, async () => store.listActions());
+  // har: #66 — HAR text into trips. parseHar throws a plain message for invalid/huge files; the
+  // renderer shows it. The stage drop zone / /import picker calls this; see har.ts.
+  handle("importHar", z.tuple([z.string().max(64 * 1024 * 1024)]), (text) => {
+    const imported = parseHar(text);
+    for (const events of imported.trips) store.handle({ type: "events", events });
+    return {
+      trips: imported.trips.length,
+      events: imported.trips.reduce((n, t) => n + t.length - 1, 0),
+      entries: imported.entries,
+      skipped: imported.skipped,
+      truncated: imported.truncated,
+      webSockets: imported.webSockets,
+    };
+  });
   handle("sendRequest", z.tuple([httpSpec]), (req) => sendRequest(req, "explorer"));
   handle("detectBrains", none, () => detectBrains());
   handle("startAgent", z.tuple([z.string().trim().min(1).max(4000), z.enum(["claude-code", "builtin"])]), (goal, brain) => startAgent(goal, brain, emit));

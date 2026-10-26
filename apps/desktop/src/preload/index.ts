@@ -114,6 +114,10 @@ for (const m of ciMethods) api[m] = (...args: unknown[]) => ipcRenderer.invoke(`
 const mcpMethods = ["mcpState", "mcpCheck", "mcpSetEnabled", "mcpTrust", "mcpAdd", "mcpRemove", "mcpFix", "mcpDismiss", "connectInfo", "connectResetToken"] as const satisfies readonly Exclude<keyof ShrikeApi, "on">[];
 for (const m of mcpMethods) api[m] = (...args: unknown[]) => ipcRenderer.invoke(`shrike:${m}`, ...args);
 
+// har: #66 HAR import into trips
+const harMethods = ["importHar"] as const satisfies readonly Exclude<keyof ShrikeApi, "on">[];
+for (const m of harMethods) api[m] = (...args: unknown[]) => ipcRenderer.invoke(`shrike:${m}`, ...args);
+
 // api: AP the API client
 const apiMethods = ["apiCollections", "apiCreateCollection", "apiLinkCollection", "apiUnlinkCollection", "apiReadRequest", "apiSaveRequest", "apiDeleteItem", "apiCreateFolder", "apiRenameItem", "apiReadEnvironment", "apiSaveEnvironment", "apiSend", "apiCancel", "apiHistory", "apiClearHistory", "apiImport", "apiCode", "apiPickFile", "apiRoutes", "apiGuessRoutes", "apiSaveGuess", "apiSaveResponse"] as const satisfies readonly Exclude<keyof ShrikeApi, "on">[];
 for (const m of apiMethods) api[m] = (...args: unknown[]) => ipcRenderer.invoke(`shrike:${m}`, ...args);

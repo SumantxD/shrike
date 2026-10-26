@@ -341,6 +341,10 @@ importers:
         version: link:../schema
 
   packages/browser-agent:
+    dependencies:
+      '@shrike/schema':
+        specifier: workspace:*
+        version: link:../schema
     devDependencies:
       esbuild:
         specifier: ^0.28.2

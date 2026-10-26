@@ -806,6 +806,9 @@ export const mockApi: ShrikeApi = {
   async getActions() {
     return [...actions.values()];
   },
+  async importHar() {
+    throw new Error("HAR import needs the desktop app.");
+  },
   async sendRequest(req) {
     const t0 = Date.now();
     await wait(60 + Math.random() * 60);
