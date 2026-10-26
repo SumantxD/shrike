@@ -3,7 +3,7 @@
 // A HAR has no clicks, so there is no user_action to hang requests on: entries are grouped into trips by
 // gaps of a second or more, each under a synthetic "Imported, no clicks" root. Every event goes through the
 // store like any live event, so redactEvent runs on it (cookies, Authorization, tokens); events from a host
-// that is not loopback/localhost are marked live, which is what switches on the store's pii redaction (#51) —
+// that is not loopback/localhost are marked live, which is what switches on the store's pii redaction (#51),
 // a HAR from someone else's browser holds real data.
 //
 // Pure: no fs, no Electron, no network. The main process feeds the returned messages into the store;
