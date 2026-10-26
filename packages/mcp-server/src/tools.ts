@@ -149,24 +149,31 @@ export function registerTools(mcp: McpServer, base: ShrikeHost, ctx: ToolContext
 
   tool(
     "list_actions",
-    "List recent Actions recorded in the user's app (each click, page load or request and everything it caused), newest first. Returns id, label, status, duration and counts.",
+    "List recent Actions recorded in the user's app (each click, page load or request and everything it caused), newest first. Returns id, label, status, duration, counts, and the warning kinds of Actions that carry them.",
     {
       limit: z.number().int().min(1).max(100).optional().describe("How many to return (default 20)"),
       status: z.enum(["ok", "slow", "error"]).optional().describe("Only Actions with this status"),
+      flagged: z.boolean().optional().describe("Only Actions that carry a warning"),
+      flag: z
+        .enum(["slow", "n_plus_one", "sequential", "duplicate_request", "swallowed_error", "cache_never_hit", "slow_outside", "empty_result"])
+        .optional()
+        .describe("Only Actions with this warning kind"),
     },
-    async ({ limit, status }) => {
-      const list = host
-        .listActions()
-        .filter((a) => !status || a.status === status)
+    async ({ limit, status, flagged, flag }) => {
+      const all = host.listActions();
+      const list = all
+        .filter((a) => (!status || a.status === status) && (!flagged || a.flags.length > 0) && (!flag || a.flags.some((f) => f.kind === flag)))
         .sort((a, b) => b.startMs - a.startMs)
         .slice(0, limit ?? 20);
-      if (!list.length) return "No Actions recorded yet. Use app_snapshot and app_click to drive the app, or send_request.";
+      if (!list.length) return all.length ? "No Actions match the given filters." : "No Actions recorded yet. Use app_snapshot and app_click to drive the app, or send_request.";
       watched(list.map((a) => a.id));
       return list
         .map((a) => {
           const s = a.summary.stats;
           const pending = a.complete ? "" : "  (still recording)";
-          return `Action ${a.id}  ${a.label}  ${a.status}  ${a.durationMs}ms  ${s.requests} requests, ${s.functions} functions, ${s.queries} queries, ${s.errors} errors${pending}`;
+          const kinds = [...new Set(a.flags.map((f) => f.kind))];
+          const warnings = kinds.length ? `  warnings: ${kinds.join(", ")}` : "";
+          return `Action ${a.id}  ${a.label}  ${a.status}  ${a.durationMs}ms  ${s.requests} requests, ${s.functions} functions, ${s.queries} queries, ${s.errors} errors${pending}${warnings}`;
         })
         .join("\n");
     },

@@ -4,7 +4,7 @@ Notable changes to Shrike. The format follows [Keep a Changelog](https://keepach
 
 ## [Unreleased]
 
-Thanks to our outside contributors, [@AK-Lmn](https://github.com/AK-Lmn), [@ShlokGhadekar](https://github.com/ShlokGhadekar), [@tingtingtingtin](https://github.com/tingtingtingtin), [@yashexc2002](https://github.com/yashexc2002), [@AkashGowdaNC](https://github.com/AkashGowdaNC), [@iamcipherdev](https://github.com/iamcipherdev), [@Yuren0312](https://github.com/Yuren0312), [@reney-0202](https://github.com/reney-0202) and [@Amandot](https://github.com/Amandot).
+Thanks to our outside contributors, [@AK-Lmn](https://github.com/AK-Lmn), [@ShlokGhadekar](https://github.com/ShlokGhadekar), [@tingtingtingtin](https://github.com/tingtingtingtin), [@yashexc2002](https://github.com/yashexc2002), [@AkashGowdaNC](https://github.com/AkashGowdaNC), [@iamcipherdev](https://github.com/iamcipherdev), [@Yuren0312](https://github.com/Yuren0312), [@reney-0202](https://github.com/reney-0202), [@Amandot](https://github.com/Amandot) and [@saimskywalker](https://github.com/saimskywalker).
 
 ### Added
 
@@ -17,6 +17,8 @@ Thanks to our outside contributors, [@AK-Lmn](https://github.com/AK-Lmn), [@Shlo
 - Find works in the Raw view and in non-JSON responses, with a match count and next and previous ([#105](https://github.com/SumantxD/shrike/pull/105), thanks [@Amandot](https://github.com/Amandot)).
 - An "N broke" badge on the trip list shows how many trips broke and jumps to the latest failing step ([#106](https://github.com/SumantxD/shrike/pull/106), thanks [@iamcipherdev](https://github.com/iamcipherdev)).
 - Save an API response body to a file, byte for byte for binary answers ([#107](https://github.com/SumantxD/shrike/pull/107), thanks [@iamcipherdev](https://github.com/iamcipherdev)).
+- Press `?` to see every keyboard shortcut, built from the real key map so it can't drift ([#108](https://github.com/SumantxD/shrike/pull/108), thanks [@saimskywalker](https://github.com/saimskywalker)).
+- `list_actions` shows each trip's warnings (swallowed errors, N+1 queries and the rest) and can filter by them ([#109](https://github.com/SumantxD/shrike/pull/109), thanks [@iamcipherdev](https://github.com/iamcipherdev)).
 - `list_trips` takes optional `status` (broke, slow or worked) and `match` filters, so your agent can ask for only the broken trips on one route ([#92](https://github.com/SumantxD/shrike/pull/92), thanks [@iamcipherdev](https://github.com/iamcipherdev)).
 - Live trips hide emails, phone numbers and IBANs as `[email#1]`, `[phone#1]` and `[iban#1]`, numbered so the same person reads the same across a trip. Local trips keep the real values. The Vercel preview bypass token is hidden everywhere ([#75](https://github.com/SumantxD/shrike/pull/75), thanks [@ShlokGhadekar](https://github.com/ShlokGhadekar)).
 - The cache inspector marks keys written by RedisJSON commands like `JSON.SET` and `JSON.DEL` ([#72](https://github.com/SumantxD/shrike/pull/72), thanks [@yashexc2002](https://github.com/yashexc2002)).

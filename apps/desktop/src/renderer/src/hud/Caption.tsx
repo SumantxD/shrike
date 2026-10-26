@@ -47,7 +47,7 @@ export function Caption() {
                 <b className="font-medium text-dim">{files ? "← →" : "↑↓"}</b> step · <b className="font-medium text-dim">Enter</b> dive · <b className="font-medium text-dim">Esc</b> surface
               </span>
               <span>
-                <b className="font-medium text-dim">T</b> time · <b className="font-medium text-dim">!</b> next failure · <b className="font-medium text-dim">Space</b> {files ? "play" : "replay"} · <b className="font-medium text-dim">V</b> {files ? "thread" : "files"}
+                <b className="font-medium text-dim">T</b> time · <b className="font-medium text-dim">!</b> next failure · <b className="font-medium text-dim">Space</b> {files ? "play" : "replay"} · <b className="font-medium text-dim">V</b> {files ? "thread" : "files"} · <b className="font-medium text-dim">?</b> keys
               </span>
             </span>
           )}

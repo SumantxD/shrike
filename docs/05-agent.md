@@ -89,7 +89,7 @@ Defined in `packages/mcp-server/src/tools.ts` (the debug agent's tools), `drive.
 
 | Tool | Input | Returns |
 |---|---|---|
-| `list_actions` | `{ limit?, status? }` | recent Actions: id, label, status, duration, stats |
+| `list_actions` | `{ limit?, status?, flagged?, flag? }` | recent Actions: id, label, status, duration, stats, and warning kinds for Actions that carry them (`flagged` keeps only warned Actions, `flag` keeps one warning kind) |
 | `get_action` | `{ actionId, includeFramework? }` | the event tree, compact (names, timings, status, file:line), no payloads |
 | `get_event` | `{ eventId }` | one event with redacted payloads (args, bodies, query, error) |
 | `search_events` | `{ query, kind?, status? }` | matching events across the session |

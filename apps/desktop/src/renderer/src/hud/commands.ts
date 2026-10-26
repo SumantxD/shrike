@@ -309,6 +309,8 @@ export function run(cmd: Command): void {
       return openFocusedFile();
     case "record":
       return useUi.setState({ recMenu: !ui.recMenu });
+    case "help":
+      return useUi.setState({ help: !ui.help });
     case "view-new-trip":
       return ui.newTrip ? viewTrip(ui.newTrip) : undefined;
     case "ask":
@@ -329,6 +331,7 @@ export function run(cmd: Command): void {
       const req = ag.approvals[0];
       if (cmd === "apply") return req ? void ag.answer(req.id, true) : undefined;
       if (ui.quickOpen) return useUi.setState({ quickOpen: false });
+      if (ui.help) return useUi.setState({ help: false });
       if (ui.sdlcOpen) return useUi.setState({ sdlcOpen: null });
       if (ui.panel) return useUi.setState({ panel: null });
       if (ui.pointing) return cancelPoint();
