@@ -211,20 +211,28 @@ export function titleParts(name: string): { head: string; sub?: string } {
   return { head: head!.toUpperCase(), ...(sub ? { sub } : {}) };
 }
 
-/** One database row as JSON, from the redacted cells the grid already shows (#93). */
+/** The text form of a non-finite number, or null when the number is finite. SQLite REAL and Postgres float columns hold Infinity and NaN, but neither has a bare SQL literal and JSON has no number for them, so both copies carry them as text (#113). */
+const nonFiniteText = (v: number): string | null =>
+  Number.isFinite(v) ? null : Number.isNaN(v) ? "NaN" : v > 0 ? "Infinity" : "-Infinity";
+
+/** One database row as JSON, from the redacted cells the grid already shows (#93). Non-finite numbers copy as their text form because JSON.stringify would write them as null (#113). */
 export function rowAsJson(columns: string[], row: Cell[]): string {
-  return JSON.stringify(Object.fromEntries(columns.map((c, i) => [c, row[i] ?? null])));
+  const cells = row.map((v) => (typeof v === "number" ? (nonFiniteText(v) ?? v) : v));
+  return JSON.stringify(Object.fromEntries(columns.map((c, i) => [c, cells[i] ?? null])));
 }
 
 const sqlIdent = (s: string) => `"${s.replace(/"/g, '""')}"`;
 const sqlValue = (v: Cell): string => {
   if (v === null) return "NULL";
   if (typeof v === "boolean") return v ? "TRUE" : "FALSE";
-  if (typeof v === "number") return String(v);
+  if (typeof v === "number") {
+    const text = nonFiniteText(v);
+    return text === null ? String(v) : `'${text}'`;
+  }
   return `'${v.replace(/'/g, "''")}'`;
 };
 
-/** One database row as an SQL INSERT: strings single-quoted with ' doubled, numbers bare, null as NULL, booleans as TRUE/FALSE, identifiers double-quoted (#93). */
+/** One database row as an SQL INSERT: strings single-quoted with ' doubled, numbers bare, non-finite numbers quoted as text, null as NULL, booleans as TRUE/FALSE, identifiers double-quoted (#93, #113). */
 export function rowAsInsert(table: string, columns: string[], row: Cell[]): string {
   return `INSERT INTO ${sqlIdent(table)} (${columns.map(sqlIdent).join(", ")}) VALUES (${row.map(sqlValue).join(", ")});`;
 }
