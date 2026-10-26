@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
-import type { ActionView, ApprovalRequest, DebugEvent, Finding, HttpRequestSpec, MemoryNote, ShrikeHost, TimelineNode } from "@shrike/schema";
+import type { ActionView, ApprovalRequest, DebugEvent, Finding, Flag, HttpRequestSpec, MemoryNote, ShrikeHost, TimelineNode } from "@shrike/schema";
 import { INTERNAL_HEADER, parseSkill, startMcpServer, type SkillDoc } from "../src/index.ts";
 
 const TRACE = "a".repeat(32);
@@ -16,7 +16,7 @@ function ev(p: Partial<DebugEvent> & Pick<DebugEvent, "id" | "kind" | "name">): 
   return { traceId: TRACE, origin: "server", startMs: 1000, durationMs: 5, status: "ok", ...p };
 }
 
-function view(id: string, failing: boolean): ActionView {
+function view(id: string, failing: boolean, flags: Flag[] = []): ActionView {
   const root = ev({ id, kind: "user_action", origin: "browser", name: 'Clicked "Add Todo"', trigger: "click", status: failing ? "error" : "ok", traceId: id.repeat(2) });
   const t = root.traceId;
   const query = ev({
@@ -33,11 +33,16 @@ function view(id: string, failing: boolean): ActionView {
     id, traceId: t, trigger: "click", label: root.name, startMs: id === ROOT_ID ? 1000 : 2000, durationMs: 42,
     status: root.status, complete: true, tree, root,
     summary: { headline: "x", steps: [], stats: { files: 2, functions: 1, requests: 1, queries: 1, logs: 1, errors: failing ? 1 : 0, totalMs: 42 } },
-    flags: [],
+    flags,
   };
 }
 
-const actions = new Map([ROOT_ID, AFTER_ID].map((id) => [id, view(id, id === ROOT_ID)]));
+// AFTER_ID is the trip that "worked" while swallowing an error: it carries a
+// swallowed_error flag even though its status is ok, while ROOT_ID is clean.
+const actions = new Map([
+  [ROOT_ID, view(ROOT_ID, true)],
+  [AFTER_ID, view(AFTER_ID, false, [{ kind: "swallowed_error", eventId: AFTER_ID.slice(0, 12) + "ffff", message: "A step inside failed but the server still replied 201." }])],
+]);
 const allEvents = [...actions.values()].flatMap((a) => {
   const out: DebugEvent[] = [a.root];
   const walk = (ns: TimelineNode[]) => ns.forEach((n) => (out.push(n.event), walk(n.children)));
@@ -166,6 +171,18 @@ test("recordings tools", async () => {
   const list = await call("list_actions");
   assert.match(list.text, new RegExp(`^Action ${AFTER_ID}`)); // newest first
   assert.match((await call("list_actions", { status: "error" })).text, /^Action 1111111111111111 .*error/);
+  assert.doesNotMatch((await call("list_actions", { status: "error" })).text, /warnings:/); // clean trips show nothing extra
+
+  // #37: warning kinds on the line, and the flagged / flag filters.
+  assert.match((await call("list_actions", { flagged: true })).text, new RegExp(`^Action ${AFTER_ID} .*warnings: swallowed_error`));
+  assert.match((await call("list_actions", { flag: "swallowed_error" })).text, new RegExp(`^Action ${AFTER_ID}`));
+  assert.match((await call("list_actions", { flagged: true, status: "error" })).text, /No Actions match the given filters/);
+  assert.match((await call("list_actions", { flag: "slow" })).text, /No Actions match the given filters/);
+
+  // #37: get_action's Flags: block is covered, not just the list line.
+  const flaggedView = await call("get_action", { actionId: AFTER_ID });
+  assert.match(flaggedView.text, /Flags:/);
+  assert.match(flaggedView.text, /swallowed_error: A step inside failed but the server still replied 201/);
 
   const got = await call("get_action", { actionId: ROOT_ID });
   assert.match(got.text, /Action 1111111111111111/);
