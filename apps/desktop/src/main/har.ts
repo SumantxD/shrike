@@ -10,10 +10,12 @@
 // the renderer calls it through the importHar IPC handler. WebSocket messages (_webSocketMessages) are
 // skipped for now (ponytail: a HAR's websocket frames are not requests, and there is no trip shape for them
 // yet). Firefox and Safari HARs differ slightly (no _initiator, content.text sometimes base64); neither
-// field is read here, and base64 bodies are decoded.
+// field is read here. Base64 text bodies are decoded; binary ones become a "[mime, N bytes]" placeholder,
+// the same one the API client writes for live responses (#119).
 import { z } from "zod";
 import type { DebugEvent, IngestMessage } from "@shrike/schema";
 import { dataKind, toData } from "../../../../packages/browser-agent/src/data.ts";
+import { isBinary } from "./api/exec.ts";
 import { MAX_EVENTS, MAX_TRIP_EVENTS, randomHex } from "./store.ts";
 
 /** The issue's cap: a HAR bigger than this is refused with a plain message, never parsed. */
@@ -37,14 +39,20 @@ const harEntry = z
         method: z.string(),
         url: z.string(),
         headers: harHeaders.optional(),
-        postData: z.object({ text: z.string().optional(), encoding: z.string().optional() }).passthrough().optional(),
+        postData: z
+          .object({ text: z.string().optional(), encoding: z.string().optional(), mimeType: z.string().optional() })
+          .passthrough()
+          .optional(),
       })
       .passthrough(),
     response: z
       .object({
         status: z.number(),
         headers: harHeaders.optional(),
-        content: z.object({ text: z.string().optional(), encoding: z.string().optional() }).passthrough().optional(),
+        content: z
+          .object({ text: z.string().optional(), encoding: z.string().optional(), mimeType: z.string().optional() })
+          .passthrough()
+          .optional(),
       })
       .passthrough()
       .optional(),
@@ -71,12 +79,16 @@ export interface HarImport {
 const lowerHeaders = (headers: { name: string; value: string }[] | undefined): Record<string, string> =>
   Object.fromEntries((headers ?? []).map((h) => [h.name.toLowerCase(), h.value]));
 
-/** HAR content.text is sometimes base64 (Firefox/Safari binary or encoded bodies); plain text otherwise. */
-function decodeBody(text: string | undefined, encoding: string | undefined): string | undefined {
+/** HAR content.text is sometimes base64 (Firefox/Safari binary or encoded bodies); plain text otherwise.
+ *  A base64 body decodes to text only when its MIME type says text (`isBinary`, shared with the API client);
+ *  a binary one becomes the same "[mime, N bytes]" placeholder a live response gets (#119). */
+function decodeBody(text: string | undefined, encoding: string | undefined, contentType: string | undefined): string | undefined {
   if (text === undefined) return undefined;
   if (encoding !== "base64") return text;
   try {
-    return Buffer.from(text, "base64").toString("utf8");
+    const bytes = Buffer.from(text, "base64");
+    if (isBinary(contentType, bytes)) return `[${contentType ?? "binary"}, ${bytes.length} bytes]`;
+    return bytes.toString("utf8");
   } catch {
     return text;
   }
@@ -100,6 +112,7 @@ function entryEvents(entry: HarEntry, traceId: string, rootId: string): DebugEve
   if (Number.isNaN(startMs)) return null;
   const method = entry.request.method.toUpperCase();
   const headers = lowerHeaders(entry.request.headers);
+  const resHeaders = lowerHeaders(entry.response?.headers);
   const status = entry.response?.status ?? 0;
   const ev: DebugEvent = {
     id: randomHex(8),
@@ -116,9 +129,9 @@ function entryEvents(entry: HarEntry, traceId: string, rootId: string): DebugEve
       url: entry.request.url,
       status,
       reqHeaders: headers,
-      resHeaders: lowerHeaders(entry.response?.headers),
-      reqBody: decodeBody(entry.request.postData?.text, entry.request.postData?.encoding),
-      resBody: decodeBody(entry.response?.content?.text, entry.response?.content?.encoding),
+      resHeaders,
+      reqBody: decodeBody(entry.request.postData?.text, entry.request.postData?.encoding, entry.request.postData?.mimeType ?? headers["content-type"]),
+      resBody: decodeBody(entry.response?.content?.text, entry.response?.content?.encoding, entry.response?.content?.mimeType ?? resHeaders["content-type"]),
     },
   };
   // #51: only foreign data gets pii redaction. Localhost HARs behave like local dev traffic (values visible).
