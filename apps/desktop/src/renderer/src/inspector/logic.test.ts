@@ -160,4 +160,20 @@ test("rowAsJson and rowAsInsert copy a row as JSON or an SQL INSERT (#93)", () =
   // A redacted value copies masked: the helpers only see what the grid shows.
   assert.equal(rowAsJson(["password"], ["[redacted:password]"]), '{"password":"[redacted:password]"}');
   assert.equal(rowAsInsert("users", ["password"], ["[redacted:password]"]), `INSERT INTO "users" ("password") VALUES ('[redacted:password]');`);
+  // Infinity and NaN are real values in SQLite REAL and Postgres float columns. A bare literal is
+  // not valid SQL and JSON.stringify turns them into null, so the copy keeps them as text (#113).
+  const nums = ["id", "score", "n"];
+  assert.equal(
+    rowAsInsert("t", nums, [1, Infinity, NaN]),
+    `INSERT INTO "t" ("id", "score", "n") VALUES (1, 'Infinity', 'NaN');`,
+  );
+  assert.equal(
+    rowAsInsert("t", nums, [1, -Infinity, NaN]),
+    `INSERT INTO "t" ("id", "score", "n") VALUES (1, '-Infinity', 'NaN');`,
+  );
+  assert.equal(rowAsJson(nums, [1, Infinity, NaN]), '{"id":1,"score":"Infinity","n":"NaN"}');
+  assert.equal(rowAsJson(nums, [1, -Infinity, NaN]), '{"id":1,"score":"-Infinity","n":"NaN"}');
+  // Finite numbers keep copying exactly as before.
+  assert.equal(rowAsInsert("t", nums, [1, 1.5, -2]), `INSERT INTO "t" ("id", "score", "n") VALUES (1, 1.5, -2);`);
+  assert.equal(rowAsJson(nums, [1, 1.5, -2]), '{"id":1,"score":1.5,"n":-2}');
 });
