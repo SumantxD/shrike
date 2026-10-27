@@ -39,6 +39,7 @@ test("api client: unreachable, untrusted TLS, binary and a huge answer end in a 
   const huge = Buffer.from(LINE.repeat(Math.ceil((12 * 1024 * 1024) / LINE.length)));
   const srv = createServer((q, r) => {
     if (q.url === "/bin") return void r.writeHead(200, { "content-type": "application/octet-stream" }).end(Buffer.from([0, 1, 2, 3, 255]));
+    if (q.url === "/json") return void r.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ todos: [{ id: 1, title: "buy milk" }] }));
     if (q.url === "/text") return void r.writeHead(200, { "content-type": "text/plain" }).end("hello");
     r.writeHead(200, { "content-type": "text/plain" }).end(huge);
   }).listen(0, "127.0.0.1");
@@ -127,12 +128,36 @@ test("api client: unreachable, untrusted TLS, binary and a huge answer end in a 
     await findInput.fill("nonexistentqueryxyz");
     await sheet.getByText("No matches").waitFor({ timeout: 5000 });
 
-    await findInput.fill("");
+    // Esc clears Find: the text, the highlights and the count go, and the API client stays open.
+    await findInput.fill("buy milk");
+    await count.waitFor();
+    await findInput.press("Escape");
     await count.waitFor({ state: "detached", timeout: 5000 });
+    assert.equal(await findInput.inputValue(), "");
+    assert.equal(await sheet.locator("mark.hit").count(), 0);
+    assert.ok(await sheet.isVisible(), "the API client closed on the Esc that cleared Find");
 
+    // The same in non-JSON Pretty.
     await sheet.getByRole("tab", { name: "Pretty" }).click();
-    await sheet.getByRole("textbox", { name: "Find in the response" }).waitFor({ timeout: 5000 });
+    await findInput.waitFor({ timeout: 5000 });
+    await findInput.fill("buy milk");
+    await count.waitFor();
+    await findInput.press("Escape");
+    await count.waitFor({ state: "detached", timeout: 5000 });
+    assert.equal(await findInput.inputValue(), "");
+    assert.equal(await sheet.locator("mark.hit").count(), 0);
+    assert.ok(await sheet.isVisible());
     await shot(app, "api-net-06-huge-find");
+
+    // And in the Pretty JSON tree, which lights keys and values with .hit.
+    await send(`http://127.0.0.1:${port}/json`);
+    await sheet.locator(".ap-json").waitFor({ timeout: 10_000 });
+    await findInput.fill("milk");
+    await sheet.locator(".ap-json .hit").first().waitFor({ timeout: 5000 });
+    await findInput.press("Escape");
+    assert.equal(await findInput.inputValue(), "");
+    await sheet.locator(".ap-json .hit").first().waitFor({ state: "detached", timeout: 5000 });
+    assert.ok(await sheet.isVisible());
   } finally {
     await cleanup();
     srv.close();

@@ -177,7 +177,15 @@ export function ResponsePane({ tabId }: { tabId: string }) {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
+    if (e.key === "Escape") {
+      if (needle) {
+        e.stopPropagation();
+        setNeedle("");
+        setMatchIndex(0);
+      }
+      return;
+    }
+    if (e.key === "Enter" && isTextSearch) {
       e.preventDefault();
       if (e.shiftKey) {
         prevMatch();
@@ -319,13 +327,13 @@ export function ResponsePane({ tabId }: { tabId: string }) {
                 setNeedle(e.target.value);
                 setMatchIndex(0);
               }}
-              onKeyDown={isTextSearch ? handleKeyDown : undefined}
+              onKeyDown={handleKeyDown}
               placeholder="Find"
               aria-label="Find in the response"
               spellCheck={false}
             />
             {isTextSearch && countText && (
-              <span className="ap-find-count font-mono text-[11px] text-faint" aria-live="polite">
+              <span className="ap-find-count" aria-live="polite">
                 {countText}
               </span>
             )}
