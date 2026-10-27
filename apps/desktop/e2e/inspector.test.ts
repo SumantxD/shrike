@@ -61,6 +61,27 @@ test("todo-app: the SQLITE lane shows the todos, and the broken Add Todo changed
       return text.startsWith("INSERT INTO") ? text : undefined;
     }, 5000);
     assert.equal(copiedSql, `INSERT INTO "todos" ("id", "title", "done", "user_id") VALUES (2, 'Fix the signup page on mobile', 0, 2);`);
+    const rowFocused = () => fixRow.evaluate((el) => el === document.activeElement);
+    const menu = panel(win).getByRole("menu", { name: "Copy row" });
+    assert.ok(await rowFocused(), "focus is back on the row after a right-click copy");
+
+    // #114: by keyboard, focus comes back to the row after a copy, Esc or a click outside, so Enter opens the menu again.
+    await fixRow.focus();
+    await win.keyboard.press("Enter");
+    await panel(win).getByRole("menuitem", { name: "Copy as JSON" }).waitFor();
+    await win.keyboard.press("Enter");
+    await menu.waitFor({ state: "detached" });
+    assert.ok(await rowFocused(), "focus is back on the row after Copy as JSON");
+    await win.keyboard.press("Enter");
+    await menu.waitFor();
+    await win.keyboard.press("Escape");
+    await menu.waitFor({ state: "detached" });
+    assert.ok(await rowFocused(), "focus is back on the row after Esc");
+    await win.keyboard.press("Enter");
+    await menu.waitFor();
+    await win.mouse.click(5, 5);
+    await menu.waitFor({ state: "detached" });
+    assert.ok(await rowFocused(), "focus is back on the row after a click outside");
 
     // I3: the planted bug, told by the database: nothing was added.
     await panel(win).getByRole("tab", { name: /What this click changed/ }).click();

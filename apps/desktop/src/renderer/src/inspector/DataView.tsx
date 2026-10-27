@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ActionView, Cell } from "@shrike/schema";
 import { api, errorMessage } from "../lib/api.ts";
 import { Spinner } from "../components/ui.tsx";
@@ -37,7 +37,12 @@ export function DataView({ placeId, view, stationIds, tick }: { placeId: string;
   const [loadingMore, setLoadingMore] = useState(false);
   const [menu, setMenu] = useState<{ x: number; y: number; columns: string[]; row: Cell[] } | null>(null);
   useEffect(() => setMore([]), [rows.data]);
+  const menuRow = useRef<HTMLElement | null>(null);
   useEffect(() => setMenu(null), [rows.data]);
+  const closeMenu = () => {
+    setMenu(null);
+    if (menuRow.current?.isConnected) menuRow.current.focus();
+  };
 
   const data = rows.data?.table === table ? rows.data : undefined;
   const all = data ? [...data.rows, ...more] : [];
@@ -114,7 +119,7 @@ export function DataView({ placeId, view, stationIds, tick }: { placeId: string;
                     const key = rowKey(data.columns, data.pk, r);
                     const kind = key ? touched.get(key) : undefined;
                     const cls = kind === "added" || kind === "changed" ? kind : table === focus.table && rowMatches(data.columns, r, focus.filters) ? "hit" : undefined;
-                    const openMenu = (x: number, y: number) => setMenu({ x, y, columns: data.columns, row: r });
+                    const openMenu = (el: HTMLElement, x: number, y: number) => ((menuRow.current = el), setMenu({ x, y, columns: data.columns, row: r }));
                     return (
                       <tr
                         key={key ?? i}
@@ -124,13 +129,13 @@ export function DataView({ placeId, view, stationIds, tick }: { placeId: string;
                         aria-label={`Row ${key ?? i + 1} of ${table}`}
                         onContextMenu={(e) => {
                           e.preventDefault();
-                          openMenu(e.clientX, e.clientY);
+                          openMenu(e.currentTarget, e.clientX, e.clientY);
                         }}
                         onKeyDown={(e) => {
                           if (e.key === "Enter" || (e.shiftKey && e.key === "F10")) {
                             e.preventDefault();
-                            const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                            openMenu(rect.left + 8, rect.bottom + 4);
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            openMenu(e.currentTarget, rect.left + 8, rect.bottom + 4);
                           }
                         }}
                       >
@@ -156,14 +161,14 @@ export function DataView({ placeId, view, stationIds, tick }: { placeId: string;
                 )}
               </div>
               {menu && table && (
-                <div className="fixed inset-0 z-40" onClick={() => setMenu(null)} onContextMenu={(e) => (e.preventDefault(), setMenu(null))}>
+                <div className="fixed inset-0 z-40" onClick={closeMenu} onContextMenu={(e) => (e.preventDefault(), closeMenu())}>
                   <div
                     role="menu"
                     aria-label="Copy row"
                     className="ap-menu glass solid absolute"
                     style={{ left: Math.min(menu.x, window.innerWidth - 220), top: Math.min(menu.y, window.innerHeight - 120) }}
                     onClick={(e) => e.stopPropagation()}
-                    onKeyDown={(e) => e.key === "Escape" && setMenu(null)}
+                    onKeyDown={(e) => e.key === "Escape" && closeMenu()}
                   >
                     <button
                       role="menuitem"
@@ -171,7 +176,7 @@ export function DataView({ placeId, view, stationIds, tick }: { placeId: string;
                       autoFocus
                       onClick={() => {
                         copyRow(table, menu.columns, menu.row, "json");
-                        setMenu(null);
+                        closeMenu();
                       }}
                     >
                       Copy as JSON
@@ -181,7 +186,7 @@ export function DataView({ placeId, view, stationIds, tick }: { placeId: string;
                       type="button"
                       onClick={() => {
                         copyRow(table, menu.columns, menu.row, "sql");
-                        setMenu(null);
+                        closeMenu();
                       }}
                     >
                       Copy as SQL INSERT
