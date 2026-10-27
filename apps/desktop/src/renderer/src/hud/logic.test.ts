@@ -4,7 +4,7 @@ import type { ActionView, DebugEvent, TimelineNode } from "@shrike/schema";
 import { buildTrip } from "../lib/thread-layout.ts";
 import {
   agentSection, failingLocation, fileChip, fuzzyScore, goalWithContext, issueMarkdown, issueTitle, keyLabel, linearVariant, logChip, matchStation, parseInline, parseMarkdown,
-  chosenFinding, parseSlash, pickChip, PLAIN, pointQuestion, previousSameLabel, probeCap, rankFindings, sameAction, rankQuick, resolveKey, sentence, sharpen, shortTitle, SHORTCUTS, slashMatches, stationChip,
+  allowedWhileHelpOpen, chosenFinding, parseSlash, pickChip, PLAIN, pointQuestion, previousSameLabel, probeCap, rankFindings, sameAction, rankQuick, resolveKey, sentence, sharpen, shortTitle, SHORTCUTS, slashMatches, stationChip,
 } from "./logic.ts";
 
 let n = 0;
@@ -80,10 +80,18 @@ test("keys: ? opens the shortcuts card, never while typing, and the card lists e
   assert.equal(k("?", { typing: true }), null);
   const listed = SHORTCUTS.flatMap((g) => g.rows.flatMap((r) => r.keys));
   for (const key of [...Object.keys(PLAIN), "Enter", "Escape", "⌘K", "⌘P", "⌘↵"]) assert.ok(listed.includes(key), `${key} is on the card`);
+  // Keys handled outside resolveKey (Q opens the quest board from its own listener) still count as real, but resolveKey can't prove them.
+  const outsideResolveKey = ["q"];
+  assert.ok(listed.includes("q"), "q is on the card");
   for (const key of listed) {
+    if (outsideResolveKey.includes(key)) continue;
     const chord = key.startsWith("⌘");
     assert.notEqual(k(chord ? key.slice(1).replace("↵", "Enter") : key, { meta: chord }), null, `${key} on the card does something`);
   }
+  assert.equal(allowedWhileHelpOpen("help"), true);
+  assert.equal(allowedWhileHelpOpen("escape"), true);
+  assert.equal(allowedWhileHelpOpen("time"), false);
+  assert.equal(allowedWhileHelpOpen("logs"), false);
   assert.deepEqual(["ArrowUp", " ", "Escape", "t", "!", "⌘K"].map(keyLabel), ["↑", "Space", "Esc", "T", "!", "⌘K"]);
 });
 

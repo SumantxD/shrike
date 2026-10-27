@@ -69,7 +69,7 @@ export function Shortcuts() {
           ))}
         </div>
         <p className="micro m-0 border-t border-hair px-4 py-2 text-[9.5px] text-faint" aria-hidden>
-          ? or Esc close · Keys never fire while you type
+          ? or Esc close
         </p>
       </section>
     </div>

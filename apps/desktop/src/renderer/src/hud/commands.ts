@@ -15,7 +15,7 @@ import { useOptions } from "../options/store.ts"; // options: M6
 import { OPTIONS_ASK } from "../options/logic.ts";
 import { toggleAppWindow } from "../appwindow/store.ts"; // AW1
 import {
-  commandName, eventsById, fileChip, goalWithContext, logChip, pickChip, planFirstDefault, pointQuestion, previousSameLabel, resolveKey, stationChip, stationLoc, tidySummary,
+  allowedWhileHelpOpen, commandName, eventsById, fileChip, goalWithContext, logChip, pickChip, planFirstDefault, pointQuestion, previousSameLabel, resolveKey, stationChip, stationLoc, tidySummary,
   type Chip, type Command, type Move, type SlashEntry, type SlashId,
 } from "./logic.ts";
 
@@ -368,6 +368,8 @@ export function useKeyboard(): void {
       if (!cmd) return;
       // Esc inside a field only closes what that field belongs to (the Ask pill or a sheet).
       const ui = useUi.getState();
+      // While the ? shortcuts card is open, only ? and Esc act; Thread keys must not change the view behind it.
+      if (ui.help && !allowedWhileHelpOpen(cmd)) return;
       if (cmd === "escape" && typing && !useAgent.getState().open && !ui.sheet && !ui.quickOpen && !ui.panel) return (e.target as HTMLElement).blur();
       // Space/Enter on a keyboard-focused button presses it.
       if ((e.key === " " || e.key === "Enter") && !e.metaKey && e.target instanceof HTMLButtonElement && e.target.matches(":focus-visible")) return;
