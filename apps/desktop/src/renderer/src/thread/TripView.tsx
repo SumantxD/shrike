@@ -76,7 +76,7 @@ function Ago({ ms }: { ms: number }) {
 
 const EDGE = 8; // px kept clear of the stage edge (design-system space 2)
 
-function Label({ st, below, width }: { st: St; below: boolean; width: number }) {
+function Label({ st, below, width, onSelect }: { st: St; below: boolean; width: number; onSelect: (st: St) => void }) {
   const left = st.left;
   const coil = (st.count ?? 1) > 1;
   const off = st.kind === "express" ? 22 : coil ? 40 : 18; // clear of the coil's loops
@@ -84,13 +84,14 @@ function Label({ st, below, width }: { st: St; below: boolean; width: number }) 
   const room = Math.min(st.room - (off - 18), left ? x - EDGE : width - x - EDGE); // the layout's 160px floor can pass the stage edge: ellipsis there instead
   if (st.kind === "express")
     return (
-      <div className="th-lab express" data-i={st.i} style={{ left: x, top: st.y, maxWidth: room }}>
+      <div className="th-lab express" data-i={st.i} style={{ left: x, top: st.y, maxWidth: room }} onClick={() => onSelect(st)}>
         {st.label}
         <small>Enter to expand · {Math.round(st.ms)}ms</small>
       </div>
     );
   return (
     <div
+      onClick={() => onSelect(st)}
       className={`th-lab${left ? " left" : below ? " below" : ""}${st.hot ? " hot" : ""}${st.post ? " post" : ""}${st.cache ? ` ${st.cache}` : ""}${st.live ? " live" : ""}`}
       data-i={st.i}
       style={{ left: x, top: st.y, ...(left ? { "--mw": `${room}px`, "--edge": `${x - EDGE}px` } : { maxWidth: room }) } as CSSProperties}
@@ -291,7 +292,7 @@ export const TripView = memo(function TripView(p: Props) {
         />
       ))}
       {stations.map((s) => (
-        <Label key={`l${s.id}`} st={s} width={width} below={!(s.fork && !s.fork.main) && (stations[s.i - 1]?.x ?? 0) > s.x && stations[s.i - 1]?.y !== s.y} />
+        <Label key={`l${s.id}`} st={s} width={width} below={!(s.fork && !s.fork.main) && (stations[s.i - 1]?.x ?? 0) > s.x && stations[s.i - 1]?.y !== s.y} onSelect={(st) => p.onStation(trip.actionId, st.i, st)} />
       ))}
 
       {focusSt && p.station > 0 && (
