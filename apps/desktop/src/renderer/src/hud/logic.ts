@@ -53,6 +53,7 @@ export const SHORTCUTS: { group: string; rows: { keys: string[]; what: string }[
     { keys: ["s"], what: "Ship" },
     { keys: ["w"], what: "Flows" },
     { keys: ["r"], what: "Record a clip" },
+    { keys: ["q"], what: "Quest board" },
     { keys: ["⌘P"], what: "Find a file, trip, route or log line" },
     { keys: ["?"], what: "Show or hide these keys" },
   ] },
@@ -80,6 +81,9 @@ export function resolveKey(k: KeyInput, ctx: { newTrip: boolean; approval: boole
   if (ctx.files && (k.key === "ArrowRight" || k.key === "ArrowLeft")) return k.key === "ArrowRight" ? "step-down" : "step-up"; // FV: the timeline runs left to right
   return PLAIN[k.key.length === 1 ? k.key.toLowerCase() : k.key] ?? null;
 }
+
+/** While the ? shortcuts card is open, only ? (help) and Esc (escape) act; every other command waits behind the card. */
+export const allowedWhileHelpOpen = (cmd: Command): boolean => cmd === "help" || cmd === "escape";
 
 export function eventsById(view: ActionView): Map<string, DebugEvent> {
   const m = new Map<string, DebugEvent>([[view.root.id, view.root]]);

@@ -25,7 +25,7 @@ export function QuestLayer() {
       if (e.metaKey || e.ctrlKey || e.altKey || liveSession(useOptions.getState())) return;
       const other = (document.activeElement as HTMLElement | null)?.closest?.('[role="dialog"]:not([aria-label="Quest board"]), [role="menu"]'); // another dialog's Esc is its own
       if (e.key === "Escape" && useQuests.getState().open && !other) return void (e.stopPropagation(), useQuests.getState().setOpen(false));
-      if (!typing(e.target) && (e.key === "q" || e.key === "Q")) (e.preventDefault(), useQuests.getState().setOpen(!useQuests.getState().open));
+      if (!typing(e.target) && !useUi.getState().help && (e.key === "q" || e.key === "Q")) (e.preventDefault(), useQuests.getState().setOpen(!useQuests.getState().open));
     };
     window.addEventListener("keydown", on, true);
     return () => window.removeEventListener("keydown", on, true);
