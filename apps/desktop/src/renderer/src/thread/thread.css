@@ -90,7 +90,7 @@
 .th-st.express.focus { border-color: var(--cyan); }
 .th-st:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
 
-.th-lab { position: absolute; transform: translateY(-50%); font: 500 12.5px var(--mono); white-space: nowrap; pointer-events: none; z-index: 3; text-shadow: 0 0 3px var(--void), 0 0 8px var(--void); transition: opacity .3s, top .5s var(--ease); }
+.th-lab { position: absolute; transform: translateY(-50%); font: 500 12.5px var(--mono); white-space: nowrap; cursor: pointer; z-index: 3; text-shadow: 0 0 3px var(--void), 0 0 8px var(--void); transition: opacity .3s, top .5s var(--ease); }
 .th-lab small { display: block; color: var(--ink-dim); font-size: 10.5px; letter-spacing: .06em; }
 .th-lab .n, .th-lab small { overflow: hidden; text-overflow: ellipsis; }
 .th-lab .n { display: block; }

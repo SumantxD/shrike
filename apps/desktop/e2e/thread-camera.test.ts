@@ -38,6 +38,17 @@ test("thread camera: ! brings the break into view after the feed scrolled away f
     await key(win, "!");
     await waitFor("! to focus the break", async () => (await win.locator(".th-trip.focus").getAttribute("data-trip")) === broke.id, 5000);
     await waitFor("the camera on the break", () => inView(win), 3000);
+
+    // #15: clicking a step's label selects it exactly as clicking its dot does.
+    const other = await win.evaluate(() => {
+      const focus = document.querySelector(".th-trip.focus .th-st.focus")?.getAttribute("data-i");
+      const lab = [...document.querySelectorAll(".th-trip.focus .th-lab[data-i]")].find((el) => el.getAttribute("data-i") !== focus);
+      return lab?.getAttribute("data-i") ?? null;
+    });
+    if (other !== null) {
+      await win.locator(`.th-trip.focus .th-lab[data-i="${other}"]`).click();
+      await waitFor("the label click to focus its step", async () => (await win.locator(".th-trip.focus .th-st.focus").getAttribute("data-i")) === other, 5000);
+    }
   } catch (err) {
     await shot(app, "failure", "tc").catch(() => {});
     throw err;
