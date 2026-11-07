@@ -2,9 +2,10 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperti
 import type { ActionView } from "@shrike/schema";
 import type { PlacedStation } from "../lib/thread-layout.ts";
 import { CODE_FG, highlight, type Token } from "../lib/highlight.ts";
-import { codeRange, codeTarget, inlineChips, resendSpec, stationEvents } from "./logic.ts";
+import { codeRange, codeTarget, copyAsCurl, hasRequest, inlineChips, resendSpec, stationEvents } from "./logic.ts";
 import { toast, useUi } from "../stores/ui.ts";
 import { useThread } from "../stores/thread.ts";
+import { useProject } from "../stores/project.ts";
 
 // T8: the focused station's code unfolds face-on from the station point.
 
@@ -20,6 +21,12 @@ export function editAndResend(view: ActionView, stepIndex?: number): void {
   if (!spec) return toast("This trip didn't send a request to resend.");
   useUi.getState().prefillExplorer({ ...spec, resendOf: view.id });
   useUi.setState({ sheet: "api", file: null });
+}
+
+/** Copy as cURL: the request a station sent, masked first on a live trip (logic.ts copyAsCurl). */
+export async function copyCurl(view: ActionView, stepIndex: number): Promise<void> {
+  const r = await copyAsCurl(view, stepIndex, useProject.getState().project?.redact?.keep, (text) => navigator.clipboard.writeText(text));
+  toast(r.message, r.ok ? "ok" : "error");
 }
 
 export const DIVE_AT = 0.18; // Thread.tsx frames a dived station this far down the feed
@@ -107,9 +114,14 @@ export function DiveCard({ view, st, at, width }: { view: ActionView; st: Placed
             Open file <kbd>E</kbd>
           </button>
         )}
-        {event?.kind === "http_request" && event.http && (
+        {hasRequest(event) && (
           <button className="k" onClick={() => editAndResend(view, st.stepIndex)} title="Open this request in the editor, change it and send it again">
             Edit and resend
+          </button>
+        )}
+        {hasRequest(event) && (
+          <button className="k" onClick={() => void copyCurl(view, st.stepIndex)} title="Copy this request as a curl command">
+            Copy as cURL
           </button>
         )}
         <button className="k" onClick={() => useThread.getState().surface()}>

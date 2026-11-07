@@ -1,4 +1,5 @@
 import type { ActionView, DebugEvent, FlowStep, HttpRequestSpec, Place } from "@shrike/schema";
+import { maskAction, type MaskOptions } from "@shrike/redact";
 import type { LaneDef, Trip } from "../lib/thread-layout.ts";
 import { firstFailure } from "../lib/thread-layout.ts";
 import { toSteps } from "../lib/steps.ts";
@@ -166,6 +167,42 @@ export function resendSpec(view: ActionView, stepIndex?: number): HttpRequestSpe
   const host = hostOf(h.reqHeaders) ?? toSteps(view).map((s) => hostOf(s.event.http?.reqHeaders)).find(Boolean);
   const url = h.url.startsWith("/") && host ? `http://${host}${h.url}` : h.url; // the server and a page's fetch record only the path
   return { method: h.method.toUpperCase(), url,...(Object.keys(headers).length ? { headers } : {}), ...(h.reqBody !== undefined && !/^(GET|HEAD)$/i.test(h.method) ? { body: h.reqBody } : {}) };
+}
+
+const sh = (s: string) => (/^[\w@%+=:,./-]+$/.test(s) ? s : `'${s.replace(/'/g, `'\\''`)}'`); // the same quoting as the API client's cURL (main/api/codegen.ts)
+
+/** A resend spec as a curl command you can paste into a terminal (Copy as cURL). */
+export function curlOf(spec: HttpRequestSpec): string {
+  const parts = [`curl${spec.method.toUpperCase() === "GET" ? "" : ` -X ${spec.method.toUpperCase()}`} ${sh(spec.url)}`, ...Object.entries(spec.headers ?? {}).map(([k, v]) => `-H ${sh(`${k}: ${v}`)}`)];
+  if (spec.body !== undefined) parts.push(`--data-raw ${sh(spec.body)}`);
+  return parts.join(" \\\n  ");
+}
+
+/** Copy as cURL: the curl text for a station's request, or undefined when it sent none. A live trip is masked first, since a copy leaves the screen (#52). */
+export function curlText(view: ActionView, stepIndex?: number, keep?: MaskOptions["keep"]): string | undefined {
+  const shown = view.root.live ? maskAction(view, { keep }) : view;
+  const spec = resendSpec(shown, stepIndex);
+  return spec && curlOf(spec);
+}
+
+/** Only a station that sent an HTTP request gets the dive card's request buttons. */
+export const hasRequest = (e?: DebugEvent): boolean => e?.kind === "http_request" && !!e.http;
+
+/** Copy as cURL: writes the text with `write` and says what to toast. Each failure has its own message. */
+export async function copyAsCurl(view: ActionView, stepIndex: number | undefined, keep: MaskOptions["keep"] | undefined, write: (text: string) => Promise<void>): Promise<{ ok: boolean; message: string }> {
+  let text: string | undefined;
+  try {
+    text = curlText(view, stepIndex, keep);
+  } catch {
+    return { ok: false, message: "Couldn't read this request." };
+  }
+  if (!text) return { ok: false, message: "This step has no request to copy." };
+  try {
+    await write(text);
+    return { ok: true, message: "Copied the request as cURL." };
+  } catch {
+    return { ok: false, message: "Couldn't copy to the clipboard." };
+  }
 }
 
 /** Save as test: the request plus one row that pins the status it answered. */
