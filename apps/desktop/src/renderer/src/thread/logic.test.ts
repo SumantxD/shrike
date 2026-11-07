@@ -2,9 +2,10 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { DebugEvent } from "@shrike/schema";
 import { blockEnd, codeRange, codeTarget, inlineChips, isGuess, offsets, plannedLanes, resendDiff, resendOrder, resendSpec, testStep, tripText, visibleRange } from "./logic.ts";
+import * as curl from "./logic.ts"; // the Copy as cURL exports, read off the namespace so a missing one fails its own test, not the whole file
 import type { ActionView } from "@shrike/schema";
 import { buildTrip, lanesFor } from "../lib/thread-layout.ts";
-import { ordersLoad, payNow } from "./fixtures.ts";
+import { curlSignup, ordersLoad, payNow } from "./fixtures.ts";
 
 const ev = (p: Partial<DebugEvent>): DebugEvent => ({ id: "e", traceId: "t", origin: "server", kind: "function", name: "f()", startMs: 0, status: "ok", ...p });
 const at = (file: string, line: number) => ({ file, line, precision: "exact" as const });
@@ -90,6 +91,50 @@ test("AP: edit and resend takes the page's own write, compare says what changed,
   assert.equal(testStep(fixed)?.request?.name, "Create todo");
   assert.deepEqual(resendOrder(["a", "x", "b", "c"], (id) => ({ b: "a", c: "a" })[id]), ["a", "b", "c", "x"]);
   assert.deepEqual(resendOrder(["a", "b"], (id) => ({ a: "b", b: "a" })[id]), ["a", "b"], "a forged loop still shows every trip");
+});
+
+test("Copy as cURL: the API client's quoting, a ' in the body, hidden values copied as their placeholder, GET has no -X", () => {
+  const post = { method: "POST", url: "http://x/api/todos", headers: { "Content-Type": "application/json", authorization: "[redacted:authorization]" }, body: `{"title":"it's"}` };
+  assert.equal(curl.curlOf(post), "curl -X POST http://x/api/todos \\\n  -H 'Content-Type: application/json' \\\n  -H 'authorization: [redacted:authorization]' \\\n  --data-raw '{\"title\":\"it'\\''s\"}'");
+  assert.equal(curl.curlOf({ method: "GET", url: "http://x/api/todos" }), "curl http://x/api/todos");
+});
+
+test("Copy as cURL: a live trip is masked before it is copied, and only an HTTP station shows the button", () => {
+  const base = curlSignup(0);
+  const node = base.tree[0]!;
+  const http = node.event;
+  const live: ActionView = { ...base, root: { ...base.root, live: true }, tree: [{ ...node, event: { ...http, http: { ...http.http!, reqBody: `{"email":"maya@example.com"}` } } }, ...base.tree.slice(1)] };
+  const text = curl.curlText(live) ?? "";
+  assert.match(text, /\[\w+#\d+\]/, "a live trip's body is masked before it is copied");
+  assert.ok(!text.includes("maya@example.com"), "the real value never reaches the clipboard");
+  assert.equal(curl.curlText(base), curl.curlOf(resendSpec(base)!), "a trip that is not live copies as recorded");
+  assert.equal(curl.curlText({ ...base, tree: [] }), undefined, "a trip with no request has nothing to copy");
+  assert.equal(curl.hasRequest(http), true);
+  assert.equal(curl.hasRequest(node.children?.[0]?.event), false, "a function station shows no Copy as cURL");
+  assert.equal(curl.hasRequest(undefined), false);
+});
+
+test("Copy as cURL: each outcome has its own toast, and the clipboard is written only when there is a request", async () => {
+  const base = curlSignup(0);
+  const written: string[] = [];
+  const ok = await curl.copyAsCurl(base, 0, undefined, async (t) => void written.push(t));
+  assert.deepEqual(ok, { ok: true, message: "Copied the request as cURL." });
+  assert.equal(written[0], curl.curlOf(resendSpec(base, 0)!), "the clipboard gets the curl text");
+
+  const none = await curl.copyAsCurl({ ...base, tree: [] }, undefined, undefined, async (t) => void written.push(t));
+  assert.deepEqual(none, { ok: false, message: "This step has no request to copy." });
+
+  const denied = await curl.copyAsCurl(base, 0, undefined, async () => {
+    throw new Error("NotAllowedError");
+  });
+  assert.deepEqual(denied, { ok: false, message: "Couldn't copy to the clipboard." });
+
+  // a view that cannot be read at all (null) throws inside curlText, which must not reach the clipboard
+  let wrote = false;
+  const unread = await curl.copyAsCurl(null as unknown as ActionView, 0, undefined, async () => void (wrote = true));
+  assert.deepEqual(unread, { ok: false, message: "Couldn't read this request." });
+  assert.equal(wrote, false, "an unreadable request never reaches the clipboard");
+  assert.equal(written.length, 1, "only the copy with a request wrote to the clipboard");
 });
 
 test("tripText: a trip as a few plain lines, with the break marked (#82)", () => {
