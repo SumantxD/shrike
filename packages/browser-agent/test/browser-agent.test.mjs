@@ -113,6 +113,8 @@ test("browser-agent end to end in Electron", { timeout: 90_000 }, async () => {
   assert.equal(log.log.message, 'adding todo {"title":"buy milk"}');
   assert.equal(log.log.level, "info");
   assert.equal(log.traceId, add.traceId);
+  // Map, Set and nested Error read as values, not {}.
+  assert.equal(children(addId).find((e) => e.kind === "log" && e.log.message.startsWith("cart")).log.message, 'cart Map(1) {"cart" => 3} Set(2) {"a", "b"} {"err":"Error: boom"}');
   assert.deepEqual(out.results.add, { status: 500, body: { error: "NOT NULL constraint failed: todos.user_id", got: { title: "buy milk" } } });
 
   // 500 and network error mark error; page sees native results.

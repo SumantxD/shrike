@@ -13,6 +13,44 @@ const LEVELS: [keyof Console & ("log" | "info" | "warn" | "error" | "debug"), Le
   ["debug", "debug"],
 ];
 
+const CAP = 100; // entries shown per Map or Set, so a huge one is cut, not walked
+
+// Renders like JSON.stringify, plus Map, Set and Error, which JSON would show as {}.
+// Returns undefined for values JSON drops (functions, symbols, undefined).
+function show(v: unknown, seen: WeakSet<object>): string | undefined {
+  if (typeof v === "bigint") return `${v}n`;
+  if (typeof v === "function" || typeof v === "symbol" || v === undefined) return undefined;
+  if (typeof v !== "object" || v === null) return JSON.stringify(v);
+  if (typeof (v as { toJSON?: unknown }).toJSON === "function") return JSON.stringify(v);
+  if (seen.has(v)) return '"[Circular]"';
+  seen.add(v);
+  const str = (x: unknown) => show(x, seen) ?? "undefined";
+  if (v instanceof Error) return JSON.stringify(`${v.name}: ${v.message}`);
+  if (v instanceof Map) {
+    const items: string[] = [];
+    for (const [k, x] of v) {
+      if (items.length >= CAP) break;
+      items.push(`${str(k)} => ${str(x)}`);
+    }
+    return `Map(${v.size}) {${items.join(", ")}}`;
+  }
+  if (v instanceof Set) {
+    const items: string[] = [];
+    for (const x of v) {
+      if (items.length >= CAP) break;
+      items.push(str(x));
+    }
+    return `Set(${v.size}) {${items.join(", ")}}`;
+  }
+  if (Array.isArray(v)) return `[${v.map((x) => show(x, seen) ?? "null").join(",")}]`;
+  const parts: string[] = [];
+  for (const k of Object.keys(v)) {
+    const s = show((v as Record<string, unknown>)[k], seen);
+    if (s !== undefined) parts.push(`${JSON.stringify(k)}:${s}`);
+  }
+  return `{${parts.join(",")}}`;
+}
+
 function preview(v: unknown): string {
   if (typeof v === "string") return v;
   if (v instanceof Error) return v.stack ?? `${v.name}: ${v.message}`;
@@ -20,17 +58,7 @@ function preview(v: unknown): string {
   if (typeof v !== "object" || v === null) return String(v);
   if (v instanceof Element) return `<${v.tagName.toLowerCase()}>`;
   try {
-    const seen = new WeakSet<object>();
-    return (
-      JSON.stringify(v, (_k, val: unknown) => {
-        if (typeof val === "bigint") return `${val}n`;
-        if (typeof val === "object" && val !== null) {
-          if (seen.has(val)) return "[Circular]";
-          seen.add(val);
-        }
-        return val;
-      }) ?? String(v)
-    );
+    return show(v, new WeakSet<object>()) ?? String(v);
   } catch {
     return Object.prototype.toString.call(v);
   }
