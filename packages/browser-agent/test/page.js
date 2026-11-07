@@ -11,6 +11,7 @@ function App() {
     await Promise.resolve();
     await new Promise((r) => setTimeout(r, 100));
     console.log("adding todo", { title: text });
+    console.log("cart", new Map([["cart", 3]]), new Set(["a", "b"]), { err: new Error("boom") });
     const res = await fetch("/api/todos", {
       method: "POST",
       headers: { "content-type": "application/json" },
